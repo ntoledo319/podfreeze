@@ -70,6 +70,11 @@ runs:
 
         EXPOSED=$(python3 -c "import json;print(json.load(open('podfreeze-report.json'))['counts'].get('trunk',0))")
         EXAMINED=$(python3 -c "import json;print(json.load(open('podfreeze-report.json'))['examined'])")
+        # A lockfile written by CocoaPods < 1.7 has no SPEC REPOS section, so sources
+        # cannot be determined. Those pods are reported as 'unknown', NOT as exposed,
+        # so a project that cannot be assessed passes fail-on-exposed and looks clean.
+        UNKNOWN=$(python3 -c "import json;print(json.load(open('podfreeze-report.json'))['counts'].get('unknown',0))")
+        echo "undetermined-count=$UNKNOWN" >> "$GITHUB_OUTPUT"
         echo "exposed-count=$EXPOSED" >> "$GITHUB_OUTPUT"
         echo "examined-count=$EXAMINED" >> "$GITHUB_OUTPUT"
         echo "report-path=podfreeze-report.json" >> "$GITHUB_OUTPUT"
