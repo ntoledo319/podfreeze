@@ -263,3 +263,14 @@ def test_truncated_file_is_an_error_not_a_legacy_lockfile():
     # A genuine legacy lockfile (no SPEC REPOS but complete) must still parse.
     rep = analyse(parse(fx.LEGACY_NO_SPEC_REPOS))
     assert rep.examined == 2
+
+
+def test_missing_lockfile_exits_nonzero_with_guidance(tmp_path, capsys, monkeypatch):
+    """Exit 0 on 'no lockfile found' would let CI read absence as 'all clear'."""
+    from podfreeze.cli import main
+    monkeypatch.chdir(tmp_path)
+    rc = main([])
+    assert rc == 2, "missing lockfile must exit non-zero"
+    err = capsys.readouterr().err
+    assert "no Podfile.lock found" in err
+    assert "check.html" in err, "should offer the zero-install route"

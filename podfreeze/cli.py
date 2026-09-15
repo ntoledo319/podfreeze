@@ -2,8 +2,16 @@
 
 Usage:
     podfreeze [PATH]            scan a Podfile.lock (default: ./Podfile.lock)
-    podfreeze --json [PATH]     machine-readable output
+    podfreeze --json [PATH]     machine-readable output for CI
+    podfreeze --pro [PATH]      migration plan (needs a licence key)
+    podfreeze --audit DIR       scan every Podfile.lock in a tree (needs a licence key)
     podfreeze --version
+
+On 2 December 2026 CocoaPods trunk stops accepting new podspecs. Your build does not
+break — but pods resolving from trunk can never receive another published version,
+including a security fix. This reports which of yours are affected.
+
+Try it with no install: https://ntoledo319.github.io/podfreeze/check.html
 """
 from __future__ import annotations
 
@@ -16,7 +24,7 @@ from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse
 from .parser import ParseError, parse
 from .pro import render_pro, verify_license
 
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 
 SOURCE = "https://blog.cocoapods.org/CocoaPods-Specs-Repo/"
 
@@ -150,8 +158,17 @@ def main(argv: list[str] | None = None) -> int:
 
     path = _find_lockfile(args.path)
     if not path.exists():
-        print(f"podfreeze: no Podfile.lock at {path}", file=sys.stderr)
-        print("Pass a path, or run from a directory containing one.", file=sys.stderr)
+        # The most common first-run mistake. Be useful, and exit non-zero so a script
+        # never reads "no lockfile here" as "nothing to worry about".
+        print(f"podfreeze: no Podfile.lock found at {path}", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  Run it from a directory containing a Podfile.lock, or pass a path:",
+              file=sys.stderr)
+        print("    podfreeze path/to/Podfile.lock", file=sys.stderr)
+        print("    podfreeze path/to/project/", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  No install needed either — paste your lockfile at:", file=sys.stderr)
+        print("    https://ntoledo319.github.io/podfreeze/check.html", file=sys.stderr)
         return 2
     try:
         lock = parse(path.read_text(encoding="utf-8", errors="replace"))
