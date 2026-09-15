@@ -1,0 +1,143 @@
+"""podfreeze CLI — CocoaPods trunk freeze exposure scanner.
+
+Usage:
+    podfreeze [PATH]            scan a Podfile.lock (default: ./Podfile.lock)
+    podfreeze --json [PATH]     machine-readable output
+    podfreeze --version
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse
+from .parser import ParseError, parse
+
+__version__ = "0.1.0"
+
+SOURCE = "https://blog.cocoapods.org/CocoaPods-Specs-Repo/"
+
+
+def _find_lockfile(given: str | None) -> Path:
+    if given:
+        p = Path(given)
+        if p.is_dir():
+            p = p / "Podfile.lock"
+        return p
+    return Path("Podfile.lock")
+
+
+def render(rep: Report, path: Path) -> str:
+    L: list[str] = []
+    a = L.append
+    a("")
+    a(f"podfreeze {__version__} — CocoaPods trunk freeze exposure")
+    a(f"file: {path}")
+    if rep.cocoapods_version:
+        a(f"lockfile written by CocoaPods {rep.cocoapods_version}")
+    a("")
+    # State what was EXAMINED, not only what was found. An empty result and a
+    # silently-filtered one are otherwise indistinguishable.
+    a(f"examined {rep.examined} pod(s)")
+    if rep.spec_repo_names:
+        a(f"spec repos declared: {', '.join(rep.spec_repo_names)}")
+    a("")
+
+    if not rep.spec_repos_section_present:
+        a("  NOTE  This lockfile has no SPEC REPOS section (CocoaPods < 1.7).")
+        a("        Pod sources cannot be determined exactly; they are reported as")
+        a("        'unknown' rather than guessed. Run `pod install` with a modern")
+        a("        CocoaPods to get an exact answer.")
+        a("")
+
+    exposed = rep.exposed
+    if exposed:
+        a(f"  {len(exposed)} pod(s) resolve from CocoaPods trunk:")
+        a("")
+        for f in exposed:
+            ver = f" {f.pod.version}" if f.pod.version else ""
+            a(f"    - {f.pod.name}{ver}")
+        a("")
+    ins = rep.insulated
+    if ins:
+        a(f"  {len(ins)} pod(s) already insulated from the freeze:")
+        a("")
+        for f in ins:
+            a(f"    - {f.pod.name}: {f.reason}")
+        a("")
+    unknown = [f for f in rep.findings if f.category == "unknown"]
+    if unknown:
+        a(f"  {len(unknown)} pod(s) of undetermined source (see NOTE above)")
+        a("")
+
+    a("  WHAT THIS DOES AND DOES NOT MEAN")
+    a("")
+    a(f"  On {FREEZE_DATE} CocoaPods trunk stops accepting new podspecs.")
+    a(f"  A read-only test run is scheduled for {TEST_RUN}.")
+    a("")
+    a("  Your build does NOT break. Existing versions keep resolving from the")
+    a("  Specs repo on GitHub and the CDN on jsDelivr, so every Podfile that")
+    a("  resolves today resolves the same way afterwards.")
+    a("")
+    if exposed:
+        a("  What changes is that the pods listed above can never receive another")
+        a("  PUBLISHED version on the coordinate you depend on — including a fix for")
+        a("  a future security vulnerability. If one of them ships a CVE patch after")
+        a("  the freeze, it cannot reach you through trunk; you would pin a git fork")
+        a("  by hand.")
+    else:
+        a("  No pod in this lockfile resolves from trunk, so the freeze does not")
+        a("  change how this project receives updates.")
+    a("")
+    a(f"  Source: {SOURCE}")
+    a("")
+    return "\n".join(L)
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="podfreeze", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("path", nargs="?", help="Podfile.lock or directory containing one")
+    ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument("--version", action="version", version=f"podfreeze {__version__}")
+    args = ap.parse_args(argv)
+
+    path = _find_lockfile(args.path)
+    if not path.exists():
+        print(f"podfreeze: no Podfile.lock at {path}", file=sys.stderr)
+        print("Pass a path, or run from a directory containing one.", file=sys.stderr)
+        return 2
+    try:
+        lock = parse(path.read_text(encoding="utf-8", errors="replace"))
+    except ParseError as e:
+        # Loud failure. Never report "clean" because parsing failed.
+        print(f"podfreeze: could not parse {path}: {e}", file=sys.stderr)
+        return 3
+
+    rep = analyse(lock)
+    if args.json:
+        print(json.dumps({
+            "version": __version__,
+            "file": str(path),
+            "freeze_date": FREEZE_DATE,
+            "test_run": TEST_RUN,
+            "examined": rep.examined,
+            "counts": rep.counts(),
+            "spec_repos": rep.spec_repo_names,
+            "spec_repos_section_present": rep.spec_repos_section_present,
+            "findings": [
+                {"pod": f.pod.name, "version": f.pod.version,
+                 "category": f.category, "reason": f.reason}
+                for f in rep.findings
+            ],
+            "source": SOURCE,
+        }, indent=2))
+    else:
+        print(render(rep, path))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
