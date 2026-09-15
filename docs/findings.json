@@ -1,0 +1,261 @@
+{
+  "title": "CocoaPods trunk freeze exposure across 83 real public iOS projects",
+  "measured_utc": "2026-09-15",
+  "tool": "podfreeze v0.5.1",
+  "source": "https://ntoledo319.github.io/podfreeze/findings.html",
+  "licence": "CC0-1.0 \u2014 public domain, no attribution required",
+  "method": {
+    "collection": "GitHub code search API, five distinct queries (SPEC REPOS, Firebase, EXTERNAL SOURCES, React-Core, CHECKOUT OPTIONS), deduplicated by repository",
+    "exposure_rule": "a pod counts as exposed when the lockfile lists it under the central specs index under any spelling (trunk, https://github.com/CocoaPods/Specs, with or without .git); pods pinned via EXTERNAL SOURCES or a private spec repo count as insulated",
+    "verification": "counts independently re-derived from the raw lockfiles by a separate script, not by the scanner alone",
+    "repository_names_withheld": "deliberately: naming third-party projects as exposed would publish a security posture their owners did not consent to"
+  },
+  "sampling_caveat": "GitHub code search does not return a random sample. It skews toward smaller, older, public repositories and away from large commercial apps, which are mostly private. These figures describe this corpus; they are not a population estimate for the App Store. n=83 is small and is stated rather than rounded up.",
+  "totals": {
+    "projects_examined": 83,
+    "sources_determinable": 57,
+    "determinable_with_exposure": 55,
+    "determinable_exposure_pct": 96.5,
+    "confirmed_clean": 2,
+    "sources_undeterminable": 26,
+    "sources_undeterminable_pct": 31.3,
+    "median_exposed_pods": 9,
+    "mean_exposed_pods": 13.4,
+    "max_exposed_pods": 69,
+    "total_exposed_pod_entries": 735,
+    "distinct_exposed_pods": 328,
+    "projects_using_firebase": 24,
+    "projects_using_firebase_pct": 28.9
+  },
+  "most_commonly_exposed_pods": [
+    {
+      "pod": "nanopb",
+      "projects": 20
+    },
+    {
+      "pod": "Firebase",
+      "projects": 19
+    },
+    {
+      "pod": "FirebaseCore",
+      "projects": 19
+    },
+    {
+      "pod": "GoogleUtilities",
+      "projects": 18
+    },
+    {
+      "pod": "FirebaseAnalytics",
+      "projects": 15
+    },
+    {
+      "pod": "GoogleAppMeasurement",
+      "projects": 14
+    },
+    {
+      "pod": "GoogleDataTransport",
+      "projects": 14
+    },
+    {
+      "pod": "FirebaseCoreDiagnostics",
+      "projects": 13
+    },
+    {
+      "pod": "GTMSessionFetcher",
+      "projects": 12
+    },
+    {
+      "pod": "PromisesObjC",
+      "projects": 12
+    },
+    {
+      "pod": "SnapKit",
+      "projects": 12
+    },
+    {
+      "pod": "RxSwift",
+      "projects": 11
+    },
+    {
+      "pod": "SwiftLint",
+      "projects": 11
+    },
+    {
+      "pod": "Alamofire",
+      "projects": 9
+    },
+    {
+      "pod": "FirebaseInstallations",
+      "projects": 9
+    },
+    {
+      "pod": "RxCocoa",
+      "projects": 9
+    },
+    {
+      "pod": "FirebaseAuthInterop",
+      "projects": 8
+    },
+    {
+      "pod": "FirebaseCoreDiagnosticsInterop",
+      "projects": 8
+    },
+    {
+      "pod": "FirebaseInstanceID",
+      "projects": 8
+    },
+    {
+      "pod": "GoogleDataTransportCCTSupport",
+      "projects": 8
+    },
+    {
+      "pod": "Crashlytics",
+      "projects": 7
+    },
+    {
+      "pod": "Fabric",
+      "projects": 7
+    },
+    {
+      "pod": "FirebaseAuth",
+      "projects": 7
+    },
+    {
+      "pod": "RxRelay",
+      "projects": 7
+    },
+    {
+      "pod": "leveldb-library",
+      "projects": 7
+    },
+    {
+      "pod": "SDWebImage",
+      "projects": 6
+    },
+    {
+      "pod": "CocoaLumberjack",
+      "projects": 5
+    },
+    {
+      "pod": "FirebaseABTesting",
+      "projects": 5
+    },
+    {
+      "pod": "FirebaseCrashlytics",
+      "projects": 5
+    },
+    {
+      "pod": "FirebaseMessaging",
+      "projects": 5
+    },
+    {
+      "pod": "FirebaseRemoteConfig",
+      "projects": 5
+    },
+    {
+      "pod": "GoogleSignIn",
+      "projects": 5
+    },
+    {
+      "pod": "Kingfisher",
+      "projects": 5
+    },
+    {
+      "pod": "MBProgressHUD",
+      "projects": 5
+    },
+    {
+      "pod": "Protobuf",
+      "projects": 5
+    },
+    {
+      "pod": "Realm",
+      "projects": 5
+    },
+    {
+      "pod": "RealmSwift",
+      "projects": 5
+    },
+    {
+      "pod": "AppAuth",
+      "projects": 4
+    },
+    {
+      "pod": "FirebaseAnalyticsInterop",
+      "projects": 4
+    },
+    {
+      "pod": "FirebaseFirestore",
+      "projects": 4
+    }
+  ],
+  "cocoapods_versions": {
+    "1.8.4": 8,
+    "1.16.2": 7,
+    "1.11.3": 6,
+    "1.2.1": 5,
+    "1.9.1": 5,
+    "1.5.3": 5,
+    "1.0.1": 4,
+    "0.39.0": 4,
+    "1.3.1": 3,
+    "1.7.5": 3,
+    "0.38.2": 2,
+    "1.5.0": 2,
+    "1.10.1": 2,
+    "1.15.2": 2,
+    "1.11.2": 2,
+    "1.6.1": 2,
+    "0.35.0": 2,
+    "1.9.3": 2,
+    "1.11.0": 1,
+    "1.10.2": 1,
+    "1.7.2": 1,
+    "1.1.1": 1,
+    "1.5.2": 1,
+    "1.11.1": 1,
+    "1.17.0": 1,
+    "1.6.0": 1,
+    "1.3.0.beta.2": 1,
+    "1.16.1": 1,
+    "1.12.1": 1,
+    "0.37.2": 1,
+    "1.6.2": 1,
+    "0.39.0.beta.3": 1,
+    "1.13.0": 1,
+    "0.33.1": 1,
+    "0.36.0.beta.2": 1
+  },
+  "exposed_pod_count_distribution": {
+    "1": 6,
+    "2": 4,
+    "3": 6,
+    "4": 2,
+    "5": 1,
+    "6": 2,
+    "7": 1,
+    "8": 4,
+    "9": 2,
+    "10": 2,
+    "11": 1,
+    "12": 3,
+    "13": 1,
+    "16": 1,
+    "17": 1,
+    "18": 1,
+    "19": 2,
+    "20": 1,
+    "21": 1,
+    "23": 3,
+    "24": 1,
+    "26": 1,
+    "27": 1,
+    "28": 1,
+    "31": 1,
+    "32": 1,
+    "33": 1,
+    "34": 1,
+    "38": 1,
+    "69": 1
+  }
+}

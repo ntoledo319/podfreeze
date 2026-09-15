@@ -5,6 +5,14 @@ security patch after the trunk freeze.
 
 **[→ Check your Podfile.lock in the browser](https://ntoledo319.github.io/podfreeze/check.html)** — no install, nothing uploaded.
 
+I ran this across **83 real public iOS projects**: 96% of those whose dependency sources
+could be determined had at least one pod that can never receive another published version.
+Firebase pods dominate the exposed set — and
+[Firebase stops publishing to CocoaPods in October 2026](https://firebase.google.com/docs/ios/cocoapods-deprecation),
+two months before the trunk freeze.
+**[Full findings and method →](https://ntoledo319.github.io/podfreeze/findings.html)**
+([raw data, CC0](https://ntoledo319.github.io/podfreeze/findings.json))
+
 Or run it locally:
 
 ```
