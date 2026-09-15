@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Check your Podfile.lock without installing anything
+    url: https://ntoledo319.github.io/podfreeze/check.html
+    about: Runs entirely in your browser. Nothing is uploaded.
+  - name: What 83 real projects showed
+    url: https://ntoledo319.github.io/podfreeze/findings.html
+    about: The measured data behind the claims, with its method and its caveats.
+  - name: Reproduce those findings yourself
+    url: https://github.com/ntoledo319/podfreeze/blob/main/reproduce_findings.py
+    about: Re-collects a corpus and re-derives every number independently.

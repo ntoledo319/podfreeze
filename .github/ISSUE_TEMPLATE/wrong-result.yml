@@ -1,0 +1,59 @@
+name: Wrong result
+description: podfreeze reported something you believe is incorrect.
+title: "[result] "
+labels: ["result"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A wrong result matters more than a crash here. This tool exists to tell you which
+        pods can never receive another published version, and a **false all-clear** — a
+        pod reported insulated when it is exposed — is the worst thing it can do.
+
+        One has already happened: a project declaring its source as
+        `https://github.com/CocoaPods/Specs` (no `.git`) had every pod reported as
+        insulated. Fixed in v0.5.1. If you have found another, this is the most valuable
+        report you can file.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of wrong?
+      options:
+        - A pod was reported INSULATED but I believe it is exposed
+        - A pod was reported EXPOSED but I believe it is insulated
+        - The counts look wrong
+        - The migration advice looks wrong
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: lockfile
+    attributes:
+      label: The relevant part of your Podfile.lock
+      description: |
+        The `SPEC REPOS` section and the lines for the affected pods are usually enough.
+        **Do not paste a whole private lockfile** — internal pod names may be sensitive,
+        and this issue is public. Renaming pods is fine as long as the source URLs stay
+        exactly as written.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: What podfreeze said
+      description: Output of `podfreeze --json Podfile.lock`, or the plain output.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: podfreeze 0.5.2
+    validations:
+      required: true
