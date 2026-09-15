@@ -31,8 +31,9 @@ from dataclasses import dataclass, asdict
 
 TRUNK_API = "https://trunk.cocoapods.org/api/v1/pods/{name}"
 RAW_PKG = "https://raw.githubusercontent.com/{repo}/{branch}/Package.swift"
-UA = "podfreeze/0.2.0 (+https://github.com/ntoledo319/podfreeze)"
+UA = "podfreeze/0.3.2 (+https://github.com/ntoledo319/podfreeze)"
 TIMEOUT = 12
+_NET_STATE: bool | None = None
 
 
 @dataclass
@@ -67,18 +68,35 @@ def _head_ok(url: str) -> bool:
         return False
 
 
+def _network_up() -> bool:
+    """One cheap probe so a network outage is reported as an outage, not as a finding.
+
+    Cached per process: a scan of 40 pods must not make 40 extra probes.
+    """
+    global _NET_STATE
+    if _NET_STATE is None:
+        _NET_STATE = _get("https://trunk.cocoapods.org/api/v1/pods/Alamofire") is not None
+    return _NET_STATE
+
+
 def fetch_trunk(name: str) -> tuple[str | None, str | None, int | None, str | None]:
-    """Return (latest_version, published_date, total_versions, error)."""
+    """Return (latest_version, published_date, total_versions, error).
+
+    Distinguishes network failure from "this pod is not on trunk" — conflating them
+    would tell a user their pod is absent when the lookup simply could not run.
+    """
     raw = _get(TRUNK_API.format(name=name))
     if raw is None:
-        return None, None, None, "trunk API unreachable or pod not found"
+        if not _network_up():
+            return None, None, None, "NETWORK UNAVAILABLE — lookup could not run"
+        return None, None, None, "not found on trunk (or the API rejected the name)"
     try:
         doc = json.loads(raw)
     except json.JSONDecodeError:
         return None, None, None, "trunk API returned non-JSON"
     versions = doc.get("versions") or []
     if not versions:
-        return None, None, 0, "no published versions"
+        return None, None, None, "no published versions"
     last = versions[-1]
     date = (last.get("created_at") or "")[:10] or None
     return last.get("name"), date, len(versions), None

@@ -20,12 +20,16 @@ _LICENSE_PREFIX = "PDFZ1"
 
 
 def verify_license(key: str | None, secret: str | None = None) -> bool:
-    """Offline licence check. Format: PDFZ1-<b32 payload>-<sig>.
+    """Offline licence check. Format: PDFZ1-<payload>-<sig>.
 
     Deliberately simple and offline. This is a paywall for honest buyers, not DRM;
     it does not phone home and stores nothing.
+
+    Tolerant of how a real buyer actually pastes a key: surrounding whitespace, and
+    case. A paying customer locked out by a lowercased key is a refund and a bad
+    review, and the key carries no secrecy that case-sensitivity would protect.
     """
-    key = (key or os.environ.get("PODFREEZE_LICENSE") or "").strip()
+    key = (key or os.environ.get("PODFREEZE_LICENSE") or "").strip().upper()
     secret = secret or os.environ.get("PODFREEZE_SECRET") or ""
     if not key or not key.startswith(_LICENSE_PREFIX):
         return False
@@ -37,7 +41,8 @@ def verify_license(key: str | None, secret: str | None = None) -> bool:
         # No secret configured locally: accept a well-formed key. The seller signs keys;
         # buyers never need the secret. Structure check only.
         return len(payload) >= 8 and len(sig) >= 8
-    expect = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
+    expect = hmac.new(secret.encode(), payload.encode(),
+                      hashlib.sha256).hexdigest()[:16].upper()
     return hmac.compare_digest(expect, sig)
 
 
@@ -108,6 +113,8 @@ def render_pro(rep: Report, licensed: bool) -> str:
             a(f"      assessment       : {why}")
         if e.swiftpm_available:
             a(f"      SwiftPM          : Package.swift found at {e.swiftpm_repo}")
+        elif e.error and "NETWORK" in e.error:
+            a(f"      SwiftPM          : not checked (network unavailable)")
         else:
             a(f"      SwiftPM          : not found at the conventional path "
               f"({e.swiftpm_repo}); check the project's own docs")

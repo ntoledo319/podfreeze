@@ -221,3 +221,30 @@ def test_crlf_and_bom_and_trailing_sections():
     for label, text in (("crlf", CRLF), ("bom", BOM), ("checksums", WITH_CHECKSUMS)):
         rep = analyse(parse(text))
         assert [f.pod.name for f in rep.exposed] == ["Alamofire"], f"{label} failed"
+
+
+# --- Buyer-facing failure modes (loop #14) ---------------------------------
+def test_licence_key_tolerates_real_paste_behaviour():
+    """A paying buyer must not be locked out by whitespace or case."""
+    from podfreeze.pro import verify_license
+    good = "PDFZ1-O110FBF11EE4-69DEE505AB1993B2"
+    assert verify_license(good)
+    assert verify_license(f"  {good}  "), "stray whitespace locked out a paying buyer"
+    assert verify_license(good.lower()), "lowercase key locked out a paying buyer"
+    assert not verify_license("garbage")
+    assert not verify_license("")
+    assert not verify_license("PDFZ1-short-x")
+
+
+def test_network_failure_is_not_reported_as_a_finding(monkeypatch):
+    """An outage must say 'lookup could not run', never 'not found on trunk'.
+
+    Conflating them tells a user their pod is absent from trunk when in fact
+    nothing was checked - a false statement about their dependency.
+    """
+    from podfreeze import enrich as en
+    monkeypatch.setattr(en, "_get", lambda url: None)
+    monkeypatch.setattr(en, "_NET_STATE", False, raising=False)
+    _, _, _, err = en.fetch_trunk("Alamofire")
+    assert "NETWORK UNAVAILABLE" in err
+    assert "not found" not in err.lower()
