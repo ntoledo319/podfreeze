@@ -138,3 +138,86 @@ def test_audit_reports_unparseable_files_instead_of_skipping(tmp_path):
     a = run_audit(tmp_path)
     assert len(a.failed_projects) == 1
     assert a.ok_projects == []
+
+
+# --- Edge cases found by adversarial fixture testing (loop #12) -------------
+AMBIGUOUS_SOURCE = """
+PODS:
+  - Shared (1.0.0)
+
+DEPENDENCIES:
+  - Shared
+
+SPEC REPOS:
+  https://internal.example/Specs.git:
+    - Shared
+  trunk:
+    - Shared
+
+COCOAPODS: 1.15.2
+"""
+
+REAL_QUOTED = """
+PODS:
+  - "Ünïcödé-Pod (1.0.0)"
+  - "GoogleUtilities/Environment (7.11.0)"
+  - pod.with.dots (2.0.0)
+
+DEPENDENCIES:
+  - pod.with.dots
+
+SPEC REPOS:
+  trunk:
+    - "Ünïcödé-Pod"
+    - GoogleUtilities
+    - pod.with.dots
+
+COCOAPODS: 1.15.2
+"""
+
+CRLF = ("PODS:\r\n  - Alamofire (5.8.1)\r\n\r\nDEPENDENCIES:\r\n  - Alamofire\r\n\r\n"
+        "SPEC REPOS:\r\n  trunk:\r\n    - Alamofire\r\n\r\nCOCOAPODS: 1.15.2\r\n")
+
+BOM = "\ufeffPODS:\n  - Alamofire (5.8.1)\n\nSPEC REPOS:\n  trunk:\n    - Alamofire\n"
+
+WITH_CHECKSUMS = """
+PODS:
+  - Alamofire (5.8.1)
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+
+SPEC CHECKSUMS:
+  Alamofire: 3ca42e259043ee0dc5c0cdd76c4bc568b8e42af7
+
+PODFILE CHECKSUM: 8d2f1a9e0b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e
+
+COCOAPODS: 1.15.2
+"""
+
+
+def test_pod_under_two_spec_repos_resolves_to_trunk():
+    """SECURITY-RELEVANT: ambiguity must resolve toward exposed, never toward safe.
+
+    Before the fix the last repo listed won, so a pod under both trunk and a private
+    repo was reported INSULATED — silently under-reporting real exposure.
+    """
+    rep = analyse(parse(AMBIGUOUS_SOURCE))
+    assert [f.pod.name for f in rep.exposed] == ["Shared"], \
+        "a pod sourced from trunk anywhere must be reported as exposed"
+
+
+def test_real_cocoapods_quoting_and_unicode():
+    """CocoaPods quotes the whole scalar: - "Name (1.0.0)" — not just the name."""
+    rep = analyse(parse(REAL_QUOTED))
+    names = {f.pod.name for f in rep.findings}
+    assert "Ünïcödé-Pod" in names
+    assert "pod.with.dots" in names
+    assert "GoogleUtilities" in names      # subspec folded to root
+
+
+def test_crlf_and_bom_and_trailing_sections():
+    for label, text in (("crlf", CRLF), ("bom", BOM), ("checksums", WITH_CHECKSUMS)):
+        rep = analyse(parse(text))
+        assert [f.pod.name for f in rep.exposed] == ["Alamofire"], f"{label} failed"

@@ -131,7 +131,11 @@ def parse(text: str) -> Lockfile:
 
     repos = doc.get("SPEC REPOS")
     lock.spec_repos_section_present = repos is not None
-    pod_to_repo: dict[str, str] = {}
+    # A pod name can appear under more than one spec repo in a malformed or hand-edited
+    # lockfile. Keep ALL sources rather than letting the last one win: under-reporting
+    # exposure is the dangerous direction for this tool, so ambiguity must resolve
+    # toward "exposed", not toward "safe".
+    pod_to_repos: dict[str, list[str]] = {}
     if isinstance(repos, dict):
         for repo, names in repos.items():
             names = names or []
@@ -139,7 +143,18 @@ def parse(text: str) -> Lockfile:
                 continue
             lock.spec_repos[str(repo)] = [str(n) for n in names]
             for n in names:
-                pod_to_repo[str(n)] = str(repo)
+                pod_to_repos.setdefault(str(n), []).append(str(repo))
+
+    def _pick_repo(root: str) -> str | None:
+        """Resolve a pod's spec repo, preferring trunk when sources conflict."""
+        sources = pod_to_repos.get(root)
+        if not sources:
+            return None
+        trunk_keys = {k.lower() for k in TRUNK_REPO_KEYS}
+        for s in sources:
+            if s.strip().lower() in trunk_keys:
+                return s          # conservative: any trunk source ⇒ exposed
+        return sources[0]
 
     for item in (doc.get("PODS") or []):
         raw, ver = _entry_name_version(item)
@@ -148,7 +163,7 @@ def parse(text: str) -> Lockfile:
             name=root,
             raw_name=raw,
             version=ver,
-            spec_repo=pod_to_repo.get(root),
+            spec_repo=_pick_repo(root),
             external_source=lock.external_sources.get(root),
             is_subspec=is_sub,
         ))
