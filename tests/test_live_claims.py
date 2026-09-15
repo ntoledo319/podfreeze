@@ -34,7 +34,7 @@ def fetch(url: str) -> str:
 @pytest.mark.network
 def test_storefront_states_the_freeze_date():
     page = fetch(STOREFRONT)
-    assert "THIS_STRING_IS_NOT_ON_THE_PAGE" in page, (
+    assert "2 Dec 2026" in page or "2 December 2026" in page or "2026-12-02" in page, (
         "the storefront no longer states the date the whole product is about"
     )
 
