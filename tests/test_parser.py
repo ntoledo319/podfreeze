@@ -274,3 +274,35 @@ def test_missing_lockfile_exits_nonzero_with_guidance(tmp_path, capsys, monkeypa
     err = capsys.readouterr().err
     assert "no Podfile.lock found" in err
     assert "check.html" in err, "should offer the zero-install route"
+
+
+def test_firebase_vendor_cutoff_is_surfaced(tmp_path, capsys):
+    """Firebase stops publishing Oct 2026 - EARLIER than the trunk freeze.
+
+    A user with Firebase who only hears '2 Dec' gets a date that is two months late.
+    """
+    from podfreeze.cli import main
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(
+        "PODS:\n  - FirebaseAuth (10.0.0)\n  - Alamofire (5.8.1)\n\n"
+        "DEPENDENCIES:\n  - FirebaseAuth\n  - Alamofire\n\n"
+        "SPEC REPOS:\n  trunk:\n    - FirebaseAuth\n    - Alamofire\n\n"
+        "COCOAPODS: 1.15.2\n"
+    )
+    main([str(lock)])
+    out = capsys.readouterr().out
+    assert "EARLIER DEADLINE" in out
+    assert "FirebaseAuth" in out
+    assert "2026-10" in out
+
+
+def test_no_firebase_means_no_earlier_deadline_noise(tmp_path, capsys):
+    """Projects without affected vendors must not see an irrelevant warning."""
+    from podfreeze.cli import main
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(
+        "PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+        "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n"
+    )
+    main([str(lock)])
+    assert "EARLIER DEADLINE" not in capsys.readouterr().out

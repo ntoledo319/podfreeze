@@ -19,6 +19,34 @@ from .parser import Lockfile, Pod
 
 FREEZE_DATE = "2026-12-02"
 TEST_RUN = "2026-11-01 to 2026-11-07"
+# Vendor cutoffs land BEFORE the trunk freeze and are the real first deadline for the
+# most widely-used pods. Sourced from the vendor's own migration docs, not inferred.
+# https://firebase.google.com/docs/ios/cocoapods-deprecation
+VENDOR_CUTOFFS = {
+    "Firebase": "2026-10",
+    "FirebaseAnalytics": "2026-10",
+    "FirebaseAuth": "2026-10",
+    "FirebaseCore": "2026-10",
+    "FirebaseCrashlytics": "2026-10",
+    "FirebaseFirestore": "2026-10",
+    "FirebaseMessaging": "2026-10",
+    "FirebaseRemoteConfig": "2026-10",
+    "FirebasePerformance": "2026-10",
+    "FirebaseStorage": "2026-10",
+    "FirebaseDatabase": "2026-10",
+    "FirebaseInAppMessaging": "2026-10",
+    "FirebaseDynamicLinks": "2026-10",
+    "GoogleUtilities": "2026-10",
+}
+
+
+def vendor_cutoff(pod_name: str) -> str | None:
+    """Return the vendor's own publishing cutoff for a pod, if earlier than the freeze.
+
+    Matches the root pod name, so 'FirebaseFirestore/Swift' resolves via 'FirebaseFirestore'.
+    """
+    root = pod_name.split("/")[0].strip()
+    return VENDOR_CUTOFFS.get(root)
 
 
 @dataclass

@@ -20,11 +20,11 @@ import json
 import sys
 from pathlib import Path
 
-from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse
+from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse, vendor_cutoff
 from .parser import ParseError, parse
 from .pro import render_pro, verify_license
 
-__version__ = "0.3.4"
+__version__ = "0.4.0"
 
 SOURCE = "https://blog.cocoapods.org/CocoaPods-Specs-Repo/"
 
@@ -86,6 +86,16 @@ def render(rep: Report, path: Path) -> str:
     a(f"  On {FREEZE_DATE} CocoaPods trunk stops accepting new podspecs.")
     a(f"  A read-only test run is scheduled for {TEST_RUN}.")
     a("")
+    early = sorted({f.pod.name.split("/")[0] for f in rep.findings
+                    if vendor_cutoff(f.pod.name)})
+    if early:
+        a("  EARLIER DEADLINE — the vendor stops publishing before the freeze:")
+        for name in early:
+            a(f"    {name}: vendor stops publishing to CocoaPods {vendor_cutoff(name)}")
+        a("")
+        a("  For these, the practical cutoff is the vendor's date, not the trunk")
+        a("  freeze. Source: https://firebase.google.com/docs/ios/cocoapods-deprecation")
+        a("")
     a("  Your build does NOT break. Existing versions keep resolving from the")
     a("  Specs repo on GitHub and the CDN on jsDelivr, so every Podfile that")
     a("  resolves today resolves the same way afterwards.")
