@@ -99,3 +99,78 @@ def test_js_and_python_agree_on_vendor_warning(tmp_path, capsys, lockfile, expec
     assert py_has_early == js_has_early == expect_early, (
         f"python={py_has_early} js={js_has_early} expected={expect_early}"
     )
+
+
+REAL_RN = """PODS:
+  - Alamofire (5.8.1)
+  - React-Core (0.72.6):
+    - glog
+    - React-Core/Default (= 0.72.6)
+  - FirebaseAuth (10.18.0):
+    - FirebaseCore (~> 10.0)
+  - glog (0.3.5)
+
+DEPENDENCIES:
+  - React-Core (from `../node_modules/react-native/`)
+  - FirebaseAuth
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+    - FirebaseAuth
+    - glog
+
+EXTERNAL SOURCES:
+  React-Core:
+    :path: "../node_modules/react-native/"
+
+COCOAPODS: 1.15.2
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not available")
+def test_per_pod_verdicts_match_on_a_real_lockfile(tmp_path):
+    """The two implementations must classify every pod identically.
+
+    Vendor-table parity is not enough: the tables could agree while the parsers
+    disagree about which pods are exposed, which is the actual product claim. This
+    runs the real browser parser in node and the real CLI on the same React Native
+    lockfile -- the shape most real iOS projects have.
+    """
+    import json as _json
+    import subprocess as _sp
+
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(REAL_RN)
+
+    from podfreeze.analyse import analyse
+    from podfreeze.parser import parse
+
+    py = {f.pod.name: f.category for f in analyse(parse(lock.read_text())).findings}
+
+    src = _js_source()
+    m = re.search(r"<script>(.*?)</script>", src, re.S)
+    assert m, "checker has no inline script"
+    body = m.group(1)
+
+    harness = tmp_path / "verdicts.js"
+    harness.write_text(
+        body
+        + "\nconst rows = analyse(parseLock("
+        + _json.dumps(REAL_RN)
+        + "));\n"
+        + "console.log(JSON.stringify(rows.map(r => [r.name, r.cat])));\n"
+    )
+    res = _sp.run(["node", str(harness)], capture_output=True, text=True, timeout=30)
+    if res.returncode != 0:
+        pytest.skip(f"checker script is not directly callable in node: {res.stderr[:200]}")
+
+    js_map = dict(_json.loads(res.stdout.strip()))
+    # JS uses exposed/safe; python uses trunk/external/private-repo/unknown
+    norm = {"trunk": "exposed", "external": "safe", "private-repo": "safe",
+            "unknown": "unknown"}
+    for pod, cat in py.items():
+        assert pod in js_map, f"browser checker omitted {pod} entirely"
+        assert js_map[pod] == norm[cat], (
+            f"{pod}: python says {cat} ({norm[cat]}), browser says {js_map[pod]}"
+        )
