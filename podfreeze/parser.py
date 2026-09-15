@@ -25,14 +25,36 @@ except ImportError:  # pragma: no cover - environment dependent
     _HAVE_YAML = False
 
 
+# Every spelling of the central specs index seen in real lockfiles. Matching is done
+# on a NORMALISED form (lowercase, no scheme, no trailing .git or slash) rather than by
+# enumerating literals -- a real lockfile used "https://github.com/CocoaPods/Specs"
+# without the .git suffix and was classified as a PRIVATE repo, i.e. reported as
+# insulated from a freeze it is fully exposed to. That is the most damaging error this
+# tool can make, so the comparison must not depend on punctuation.
 TRUNK_REPO_KEYS = {
     "trunk",
+    "master",
     "https://github.com/cocoapods/specs.git",
     "https://github.com/CocoaPods/Specs.git",
     "https://cdn.cocoapods.org/",
     "https://cdn.cocoapods.org",
-    "master",
 }
+
+
+def _normalise_repo(value: str) -> str:
+    """Reduce a spec-repo identifier to a comparable form.
+
+    'https://github.com/CocoaPods/Specs.git' -> 'github.com/cocoapods/specs'
+    'git@github.com:CocoaPods/Specs.git'     -> 'github.com/cocoapods/specs'
+    """
+    v = value.strip().strip('"').strip("'").lower()
+    v = re.sub(r"^[a-z0-9+.-]+://", "", v)          # scheme
+    v = re.sub(r"^git@([^:]+):", r"\1/", v)          # scp-style git remote
+    v = re.sub(r"\.git$", "", v)                     # trailing .git
+    return v.rstrip("/")
+
+
+TRUNK_REPO_NORMALISED = {_normalise_repo(k) for k in TRUNK_REPO_KEYS}
 
 # "SDWebImage (5.18.10)" / "SDWebImage/Core (= 5.18.10)" / "Alamofire (~> 5.8)"
 _ENTRY = re.compile(r"^\s*(?P<name>[^\s(]+)\s*(?:\((?P<ver>[^)]*)\))?\s*$")
@@ -60,7 +82,7 @@ class Pod:
             # omit the section entirely; those resolved from the master specs repo,
             # which is the same trunk index. Treated as trunk, and flagged as inferred.
             return True
-        return self.spec_repo.strip().lower() in {k.lower() for k in TRUNK_REPO_KEYS}
+        return _normalise_repo(self.spec_repo) in TRUNK_REPO_NORMALISED
 
 
 @dataclass

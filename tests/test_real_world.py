@@ -75,3 +75,72 @@ def test_external_git_source_is_insulated():
     assert swifty[0].category == "external", (
         f"SwiftyJSON pinned via :git must be insulated, got {swifty[0].category}"
     )
+
+
+def test_trunk_url_without_git_suffix_is_not_private():
+    """A real lockfile used the Specs URL WITHOUT '.git' and was called private.
+
+    Classifying trunk as a private repo tells the user a pod is insulated from a
+    freeze it is fully exposed to -- the most damaging error this tool can make.
+    Matching must normalise, not enumerate punctuation.
+    """
+    from podfreeze.parser import _normalise_repo, TRUNK_REPO_NORMALISED
+
+    for spelling in (
+        "https://github.com/CocoaPods/Specs",
+        "https://github.com/CocoaPods/Specs.git",
+        "https://github.com/cocoapods/specs/",
+        "git@github.com:CocoaPods/Specs.git",
+        "https://cdn.cocoapods.org",
+        "https://cdn.cocoapods.org/",
+        "trunk",
+        "master",
+    ):
+        assert _normalise_repo(spelling) in TRUNK_REPO_NORMALISED, (
+            f"{spelling!r} must be recognised as trunk"
+        )
+
+    for private in (
+        "https://github.internal.corp/Specs.git",
+        "https://gitlab.example.com/ios/Specs",
+        "git@github.com:AcmeCorp/Specs.git",
+    ):
+        assert _normalise_repo(private) not in TRUNK_REPO_NORMALISED, (
+            f"{private!r} must NOT be treated as trunk"
+        )
+
+
+def test_quoted_subspec_name_is_parsed():
+    """CocoaPods quotes names containing '+', e.g. "GoogleUtilities/NSData+zlib".
+
+    A pod silently vanishing from an exposure report is the worst failure mode: the
+    report looks complete and is not.
+    """
+    from podfreeze.parser import parse
+
+    text = (FIXTURES / "quoted_subspec.lock").read_text(encoding="utf-8")
+    lock = parse(text)
+    raw = {p.raw_name for p in lock.pods}
+    assert "GoogleUtilities/NSData+zlib" in raw, (
+        f"quoted subspec dropped; parsed: {sorted(raw)}"
+    )
+
+
+def test_pod_from_unsuffixed_trunk_url_is_reported_exposed():
+    """Exercise the real code path, not just the helper.
+
+    Testing _normalise_repo directly does not prove Pod.from_trunk uses it -- reverting
+    from_trunk to literal matching left the helper test passing while the product
+    regressed. This asserts the end-to-end classification.
+    """
+    from podfreeze.analyse import analyse
+    from podfreeze.parser import parse
+
+    text = (FIXTURES / "quoted_subspec.lock").read_text(encoding="utf-8")
+    report = analyse(parse(text))
+    by_name = {f.pod.name: f.category for f in report.findings}
+    assert by_name.get("GoogleUtilities") == "trunk", (
+        f"GoogleUtilities under an unsuffixed Specs URL must be exposed, "
+        f"got {by_name.get('GoogleUtilities')!r} — a false 'insulated' verdict"
+    )
+    assert by_name.get("Alamofire") == "trunk"

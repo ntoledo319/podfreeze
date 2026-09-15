@@ -1,0 +1,14 @@
+PODS:
+  - "GoogleUtilities/NSData+zlib (7.5.2)"
+  - Alamofire (5.8.1)
+
+DEPENDENCIES:
+  - "GoogleUtilities/NSData+zlib"
+  - Alamofire
+
+SPEC REPOS:
+  https://github.com/CocoaPods/Specs:
+    - GoogleUtilities
+    - Alamofire
+
+COCOAPODS: 1.11.3

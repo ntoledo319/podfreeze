@@ -45,7 +45,7 @@ runs:
     - name: Install podfreeze
       shell: bash
       # Install the version the consumer actually pinned. Fetching @main here would
-      # silently ignore `uses: ntoledo319/podfreeze@v0.5.0` and run whatever is on
+      # silently ignore `uses: ntoledo319/podfreeze@v0.5.1` and run whatever is on
       # main instead -- a pin that does not pin is worse than no pin.
       run: pip install --quiet "$GITHUB_ACTION_PATH"
 
