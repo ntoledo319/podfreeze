@@ -1,0 +1,37 @@
+name: pr-comment-simulation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make a lockfile with exposure
+        run: |
+          cat > Podfile.lock <<'EOF'
+          PODS:
+            - FirebaseAuth (10.18.0)
+            - Alamofire (5.8.1)
+
+          DEPENDENCIES:
+            - FirebaseAuth
+            - Alamofire
+
+          SPEC REPOS:
+            trunk:
+              - FirebaseAuth
+              - Alamofire
+
+          COCOAPODS: 1.15.2
+          EOF
+      - uses: ./
+        with:
+          path: Podfile.lock
+          comment-on-pr: 'true'
