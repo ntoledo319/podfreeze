@@ -85,3 +85,26 @@ def test_no_moving_refs_in_advertised_installs():
         and p.name != "action.yml"  # action.yml only mentions it inside a comment
     ]
     assert not offenders, f"advertised install uses a moving ref in: {offenders}"
+
+
+def test_no_hardcoded_version_strings_in_workflows():
+    """A bare version in CI goes stale the same way a pin does.
+
+    `test "$V" = "podfreeze 0.4.2"` sat in install-matrix.yml and failed all ten legs
+    on the v0.5.0 release -- the install was fine, the assertion was stale. The pin
+    updater only rewrote `podfreeze@vX.Y.Z`, so a bare `X.Y.Z` slipped past it.
+    Workflows must derive the version, never hardcode it.
+    """
+    want = shipping_version()
+    wf_dir = ROOT / ".github" / "workflows"
+    if not wf_dir.exists():
+        return
+    bare = re.compile(r'podfreeze (\d+\.\d+\.\d+)')
+    offenders: list[str] = []
+    for wf in wf_dir.glob("*.yml"):
+        for found in bare.findall(wf.read_text(encoding="utf-8")):
+            if found != want:
+                offenders.append(f"{wf.name}: hardcoded {found}, shipping {want}")
+    assert not offenders, (
+        f"workflows assert a stale version: {offenders}. Derive it from the tag instead."
+    )

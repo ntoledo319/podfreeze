@@ -21,14 +21,33 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Derive the version from the release tag (or the latest tag on manual runs) so
+      # this workflow can never assert a stale hardcoded version. A hardcoded "0.4.2"
+      # here failed all 10 legs on the v0.5.0 release while the install itself was fine.
+      - name: Resolve the version under test
+        id: ver
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG=$(git ls-remote --tags --refs --sort=-v:refname \
+                  https://github.com/ntoledo319/podfreeze \
+                  | head -1 | sed 's#.*/##')
+          fi
+          test -n "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "bare=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "testing $TAG (bare ${TAG#v})"
+
       - name: Install exactly what the storefront advertises
-        run: pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.5.0"
+        run: pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@${{ steps.ver.outputs.tag }}"
 
       - name: Version must match the tag
         run: |
           V=$(podfreeze --version)
           echo "$V"
-          test "$V" = "podfreeze 0.4.2"
+          test "$V" = "podfreeze ${{ steps.ver.outputs.bare }}"
 
       - name: Real scan must classify correctly
         run: |
