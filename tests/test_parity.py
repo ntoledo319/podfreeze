@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+FIXTURES = Path(__file__).resolve().parent / "real_world"
 CHECKER = ROOT / "docs" / "check.html"
 
 
@@ -174,3 +175,47 @@ def test_per_pod_verdicts_match_on_a_real_lockfile(tmp_path):
         assert js_map[pod] == norm[cat], (
             f"{pod}: python says {cat} ({norm[cat]}), browser says {js_map[pod]}"
         )
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not available")
+def test_checker_leads_with_the_same_summary_as_the_cli():
+    """Three implementations produce this output; all three must summarise, not dump.
+
+    The same wall-of-rows defect was fixed in the paid report (v0.6.0) and the CLI
+    (v0.6.1). The browser checker is the third implementation and the one every visitor
+    sees first -- it must state the exposure ratio and the earlier-cutoff count BEFORE
+    the table, and its numbers must match the CLI exactly.
+    """
+    import json as _json
+    import subprocess as _sp
+
+    src = _js_source()
+    # the summary must be built before the table markup
+    assert "resolve from CocoaPods trunk." in src, (
+        "checker no longer states the exposure ratio")
+    summary_at = src.index("resolve from CocoaPods trunk.")
+    table_at = src.index("<table><tr><th>Pod</th>")
+    assert summary_at < table_at, (
+        "the exposure summary is emitted after the table -- a reader must scroll the "
+        "whole list to learn anything")
+
+    body = re.search(r"<script>(.*?)</script>", src, re.S).group(1)
+    lock = (FIXTURES / "legacy_specs_url.lock").read_text(encoding="utf-8")
+    harness = body + (
+        "\nconst rows = analyse(parseLock(" + _json.dumps(lock) + "));\n"
+        "console.log(JSON.stringify({n: rows.length, "
+        "e: rows.filter(r => r.cat === 'exposed').length}));\n")
+    import tempfile, pathlib as _p
+    with tempfile.TemporaryDirectory() as td:
+        f = _p.Path(td) / "h.js"
+        f.write_text(harness)
+        res = _sp.run(["node", str(f)], capture_output=True, text=True, timeout=30)
+    assert res.returncode == 0, f"checker script failed in node: {res.stderr[:200]}"
+    got = _json.loads(res.stdout.strip())
+
+    from podfreeze.analyse import analyse
+    from podfreeze.parser import parse
+    rep = analyse(parse(lock))
+    cli_exposed = len([f for f in rep.findings if f.category == "trunk"])
+    assert got["n"] == rep.examined, f"examined: browser={got['n']} cli={rep.examined}"
+    assert got["e"] == cli_exposed, f"exposed: browser={got['e']} cli={cli_exposed}"

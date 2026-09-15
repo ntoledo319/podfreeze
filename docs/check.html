@@ -185,7 +185,22 @@ function run(){
   const safe = rows.filter(r=>r.cat==='safe');
   const unknown = rows.filter(r=>r.cat==='unknown');
 
-  let h = '<h2>Result</h2><p>Examined <strong>'+rows.length+'</strong> pod(s).</p>';
+  // Lead with the two facts that matter. On a real 76-pod lockfile the exposure count
+  // and the earlier-deadline warning both landed AFTER a 77-row table, so the reader had
+  // to scroll the whole thing to learn anything. Same defect fixed in the CLI (v0.6.1)
+  // and the paid report (v0.6.0); this is the third implementation of the same output.
+  const exposedRows = rows.filter(r => r.cat === 'exposed');
+  const earlyNames = [...new Set(rows.map(r => String(r.name).split("/")[0])
+                                     .filter(n => vendorCutoff(n)))].sort();
+  let h = '<h2>Result</h2>';
+  h += '<p><strong>' + exposedRows.length + ' of ' + rows.length +
+       '</strong> pod(s) resolve from CocoaPods trunk.';
+  if (earlyNames.length) {
+    h += ' <strong>' + earlyNames.length + '</strong> of them ' +
+         (earlyNames.length === 1 ? 'faces' : 'face') +
+         ' an <strong>earlier</strong> vendor cutoff — see below.';
+  }
+  h += '</p>';
   h += '<table><tr><th>Pod</th><th>Version</th><th>Status</th><th>Why</th></tr>';
   for(const r of rows){
     const label = r.cat==='exposed' ? '<span class="exposed">exposed</span>'
