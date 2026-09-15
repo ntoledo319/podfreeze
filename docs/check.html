@@ -73,6 +73,18 @@ Read-only Plan</a>. Same analysis as the
 </div>
 
 <script>
+  // Vendor cutoffs land BEFORE the trunk freeze. Mirrors podfreeze/analyse.py —
+  // any change here must be made there too, and CI asserts the two agree.
+  const VENDOR_CUTOFFS = {
+    "Firebase":"2026-10","FirebaseAnalytics":"2026-10","FirebaseAuth":"2026-10",
+    "FirebaseCore":"2026-10","FirebaseCrashlytics":"2026-10","FirebaseFirestore":"2026-10",
+    "FirebaseMessaging":"2026-10","FirebaseRemoteConfig":"2026-10",
+    "FirebasePerformance":"2026-10","FirebaseStorage":"2026-10",
+    "FirebaseDatabase":"2026-10","FirebaseInAppMessaging":"2026-10",
+    "FirebaseDynamicLinks":"2026-10","GoogleUtilities":"2026-10"
+  };
+  function vendorCutoff(name){ return VENDOR_CUTOFFS[String(name).split("/")[0].trim()] || null; }
+
 // Minimal Podfile.lock reader. Deliberately NOT a general YAML parser: it reads the
 // three sections that decide trunk exposure. Same logic as the Python CLI.
 const TRUNK = new Set(['trunk','https://github.com/cocoapods/specs.git',
@@ -181,6 +193,19 @@ function run(){
          '</td><td>'+label+'</td><td>'+r.why+'</td></tr>';
   }
   h += '</table>';
+
+  const early = [...new Set(rows.map(r => String(r.name).split("/")[0])
+                               .filter(n => vendorCutoff(n)))].sort();
+  if(early.length){
+    h += '<div class="box err"><strong>Earlier deadline than 2 Dec 2026.</strong><br>'+
+         'These vendors stop publishing to CocoaPods before the trunk freeze:<br>';
+    for(const n of early){
+      h += '<code>'+esc(n)+'</code> — vendor stops publishing '+esc(vendorCutoff(n))+'<br>';
+    }
+    h += '<br>For these, the practical cutoff is the vendor\'s date, not the freeze. '+
+         'Source: <a href="https://firebase.google.com/docs/ios/cocoapods-deprecation">'+
+         'Firebase migration guide</a>.</div>';
+  }
 
   h += '<div class="box"><strong>Your build does not break.</strong> Existing versions '+
        'keep resolving from the Specs repo and the jsDelivr CDN — a Podfile that resolves '+
