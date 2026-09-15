@@ -22,7 +22,8 @@ import json
 import sys
 from pathlib import Path
 
-from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse, vendor_cutoff
+from .analyse import (FREEZE_DATE, TEST_RUN, Report, analyse, freeze_phrasing,
+                      vendor_cutoff)
 from .parser import ParseError, parse
 from .pro import render_pro, verify_license
 
@@ -96,8 +97,9 @@ def render(rep: Report, path: Path) -> str:
 
     a("  WHAT THIS DOES AND DOES NOT MEAN")
     a("")
-    a(f"  On {FREEZE_DATE} CocoaPods trunk stops accepting new podspecs.")
-    a(f"  A read-only test run is scheduled for {TEST_RUN}.")
+    ph = freeze_phrasing()
+    a(f"  {ph['headline']}")
+    a(f"  {ph['testrun']}")
     a("")
     early = sorted({f.pod.name.split("/")[0] for f in rep.findings
                     if vendor_cutoff(f.pod.name)})

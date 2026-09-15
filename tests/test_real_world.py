@@ -710,3 +710,52 @@ def test_paid_report_carries_the_support_and_refund_route(tmp_path, monkeypatch)
         "the refund terms promised at checkout are absent from the deliverable")
     assert "reproduce_findings.py" in md, (
         "the report does not tell a buyer how to check the published claims")
+
+
+def test_copy_is_tense_correct_after_the_freeze():
+    """This tool outlives the operation that wrote it, and the freeze is a dated event.
+
+    "trunk stops accepting new podspecs" and "a test run is scheduled for" become
+    quietly wrong on 3 December 2026 -- for every user, forever. A tool whose entire
+    argument is about a deadline cannot misstate whether that deadline has passed.
+    """
+    import datetime as dt
+    from podfreeze.analyse import freeze_has_passed, freeze_phrasing
+
+    assert freeze_has_passed(dt.date(2026, 12, 1)) is False
+    assert freeze_has_passed(dt.date(2026, 12, 2)) is False, (
+        "the freeze day itself is not yet past")
+    assert freeze_has_passed(dt.date(2026, 12, 3)) is True
+    assert freeze_has_passed(dt.date(2030, 1, 1)) is True
+
+    before = freeze_phrasing(dt.date(2026, 9, 15))
+    after = freeze_phrasing(dt.date(2027, 3, 1))
+    assert "stops accepting" in before["headline"]
+    assert "is scheduled for" in before["testrun"]
+    assert "stopped accepting" in after["headline"], (
+        "after the freeze the tool still speaks in the future tense")
+    assert "ran" in after["testrun"]
+    assert "scheduled" not in after["testrun"], (
+        "a test run that already happened is still described as scheduled")
+
+
+def test_cli_uses_the_tense_helper(tmp_path, capsys, monkeypatch):
+    """The helper is worthless if the output does not call it."""
+    import datetime as dt
+    from podfreeze import analyse as A
+    from podfreeze.cli import main
+
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text("PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+                    "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
+
+    class FakeDate(dt.date):
+        @classmethod
+        def today(cls):
+            return cls(2027, 3, 1)
+
+    monkeypatch.setattr(A._dt, "date", FakeDate)
+    main([str(lock)])
+    out = capsys.readouterr().out
+    assert "stopped accepting" in out, "CLI still uses future tense after the freeze"
+    assert "is scheduled for" not in out

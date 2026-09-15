@@ -13,6 +13,8 @@ a git source, or a vendored path.
 """
 from __future__ import annotations
 
+import datetime as _dt
+
 from dataclasses import dataclass
 
 from .parser import Lockfile, Pod
@@ -38,6 +40,35 @@ VENDOR_CUTOFFS = {
     "FirebaseDynamicLinks": "2026-10",
     "GoogleUtilities": "2026-10",
 }
+
+
+def freeze_has_passed(today: _dt.date | None = None) -> bool:
+    """Has the trunk freeze already happened?
+
+    This tool is built to outlive the operation that wrote it, and the freeze is a dated
+    event. Copy written in the future tense -- "trunk stops accepting new podspecs",
+    "a test run is scheduled for" -- becomes quietly wrong the day after 2 December 2026,
+    for every user, forever. A tool whose whole argument is about a deadline cannot
+    misstate whether that deadline has passed.
+    """
+    today = today or _dt.date.today()
+    y, m, d = (int(x) for x in FREEZE_DATE.split("-"))
+    return today > _dt.date(y, m, d)
+
+
+def freeze_phrasing(today: _dt.date | None = None) -> dict[str, str]:
+    """Tense-correct fragments for the freeze, chosen from today's date."""
+    if freeze_has_passed(today):
+        return {
+            "headline": f"On {FREEZE_DATE} CocoaPods trunk stopped accepting new podspecs.",
+            "testrun": f"The read-only test run ran {TEST_RUN}.",
+            "tense": "past",
+        }
+    return {
+        "headline": f"On {FREEZE_DATE} CocoaPods trunk stops accepting new podspecs.",
+        "testrun": f"A read-only test run is scheduled for {TEST_RUN}.",
+        "tense": "future",
+    }
 
 
 def vendor_cutoff(pod_name: str) -> str | None:

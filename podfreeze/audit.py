@@ -20,7 +20,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .analyse import FREEZE_DATE, analyse, vendor_cutoff
+from .analyse import FREEZE_DATE, analyse, freeze_has_passed, vendor_cutoff
 from .enrich import Enrichment, enrich
 from .parser import ParseError, parse
 
@@ -146,8 +146,10 @@ def render_markdown(audit: Audit, root: Path) -> str:
     a("")
     a(f"Generated {today} by podfreeze. Scanned `{root}`.")
     a("")
-    a(f"CocoaPods trunk goes permanently read-only on **{FREEZE_DATE}**, with a "
-      f"read-only test run 1–7 November 2026. Source: "
+    _verb = "went" if freeze_has_passed() else "goes"
+    _run = "ran" if freeze_has_passed() else "with a read-only test run"
+    a(f"CocoaPods trunk {_verb} permanently read-only on **{FREEZE_DATE}**, "
+      f"{_run} 1–7 November 2026. Source: "
       f"<https://blog.cocoapods.org/CocoaPods-Specs-Repo/>")
     a("")
     a("**Builds do not break.** Existing versions keep resolving from the Specs repo "
