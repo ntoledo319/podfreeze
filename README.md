@@ -8,7 +8,7 @@ security patch after the trunk freeze.
 Or run it locally:
 
 ```
-pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.4.1"
+pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.4.2"
 cd your-ios-project
 podfreeze
 ```
@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ntoledo319/podfreeze@v0.4.1
+      - uses: ntoledo319/podfreeze@v0.4.2
         with:
           path: Podfile.lock
           fail-on-exposed: 'false'   # 'true' to block the PR on any trunk-resolved pod
@@ -108,7 +108,7 @@ Outputs: `exposed-count`, `examined-count`, `report-path`.
 With a Pro key, pass it from a secret to get the prioritised migration plan in CI:
 
 ```yaml
-      - uses: ntoledo319/podfreeze@v0.4.1
+      - uses: ntoledo319/podfreeze@v0.4.2
         with:
           license: ${{ secrets.PODFREEZE_LICENSE }}
 ```
