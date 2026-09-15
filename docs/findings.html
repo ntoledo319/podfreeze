@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What 83 real Podfile.lock files say about the CocoaPods trunk freeze</title>
+<meta name="description" content="Measured data from 83 real public iOS projects: 96% of projects whose dependency sources can be determined have at least one pod that can never receive another published version after 2 December 2026.">
+<link rel="canonical" href="https://ntoledo319.github.io/podfreeze/findings.html">
+<meta property="og:title" content="What 83 real Podfile.lock files say about the CocoaPods trunk freeze">
+<meta property="og:description" content="96% of projects with determinable sources have at least one exposed pod. Firebase dominates. Measured, not estimated.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://ntoledo319.github.io/podfreeze/findings.html">
+<style>
+:root{--fg:#1a1a1a;--dim:#666;--line:#e2e2e2;--accent:#b8341f;--safe:#1a7f37}
+*{box-sizing:border-box}
+body{max-width:46rem;margin:0 auto;padding:2.5rem 1.25rem 5rem;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--fg)}
+h1{font-size:1.9rem;line-height:1.25;margin:0 0 .4rem}
+h2{font-size:1.2rem;margin:2.4rem 0 .7rem;padding-top:1.2rem;border-top:1px solid var(--line)}
+.sub{color:var(--dim);margin:0 0 2rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.94rem}
+th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;background:#fafafa}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+code{background:#f4f4f4;padding:.12rem .3rem;border-radius:3px;font-size:.9em}
+.big{font-size:2.6rem;font-weight:700;line-height:1;margin:.2rem 0}
+.caveat{background:#fffbf0;border-left:3px solid #d9a441;padding:.9rem 1rem;margin:1.5rem 0;font-size:.94rem}
+.method{background:#f7f9fb;border-left:3px solid #4a7fb5;padding:.9rem 1rem;margin:1.5rem 0;font-size:.94rem}
+a{color:var(--accent)}
+.btn{display:inline-block;background:var(--fg);color:#fff;padding:.6rem 1.1rem;border-radius:5px;text-decoration:none;margin:.4rem .4rem .4rem 0;font-size:.95rem}
+.btn.alt{background:#fff;color:var(--fg);border:1px solid var(--fg)}
+footer{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line);color:var(--dim);font-size:.9rem}
+</style>
+</head>
+<body>
+
+<h1>What 83 real Podfile.lock files say about the CocoaPods trunk freeze</h1>
+<p class="sub">Measured on 15 September 2026 against public iOS repositories. Every number
+here came from running a scanner over real files, not from an estimate.</p>
+
+<p>On <strong>2 December 2026</strong> CocoaPods trunk stops accepting new podspecs
+(<a href="https://blog.cocoapods.org/CocoaPods-Specs-Repo/">announcement</a>). Builds keep
+working. What ends is the ability of a pod to <em>publish</em> another version on the
+coordinate you depend on — including a fix for a vulnerability discovered in 2027.</p>
+
+<p>The obvious question is how much that actually affects real projects. So I measured it.</p>
+
+<h2>The headline number</h2>
+
+<p class="big">96%</p>
+<p>of projects whose dependency sources can be determined have <strong>at least one pod
+that can never receive another published version</strong> after the freeze.</p>
+
+<table>
+<tr><th>Measure</th><th class="num">Value</th></tr>
+<tr><td>Projects examined</td><td class="num">83</td></tr>
+<tr><td>Sources determinable</td><td class="num">57</td></tr>
+<tr><td>&nbsp;&nbsp;of those, ≥1 trunk-resolved pod</td><td class="num">55 (96%)</td></tr>
+<tr><td>&nbsp;&nbsp;of those, none exposed</td><td class="num">2</td></tr>
+<tr><td>Sources <em>not</em> determinable (lockfile predates <code>SPEC REPOS</code>)</td><td class="num">26</td></tr>
+<tr><td>Median exposed pods per affected project</td><td class="num">9</td></tr>
+<tr><td>Mean exposed pods per affected project</td><td class="num">13.4</td></tr>
+<tr><td>Most in a single project</td><td class="num">69</td></tr>
+<tr><td>Distinct exposed pods across the corpus</td><td class="num">328</td></tr>
+</table>
+
+<p>The two unexposed projects are not a counter-example worth celebrating: both depend on
+exactly one pod, pinned via <code>EXTERNAL SOURCES</code>. Nothing about them generalises.</p>
+
+<h2>Firebase is the story</h2>
+
+<p>The pods that show up exposed most often are overwhelmingly Google's:</p>
+
+<table>
+<tr><th>Pod</th><th class="num">Projects</th></tr>
+<tr><td><code>nanopb</code></td><td class="num">20</td></tr>
+<tr><td><code>Firebase</code></td><td class="num">19</td></tr>
+<tr><td><code>FirebaseCore</code></td><td class="num">19</td></tr>
+<tr><td><code>GoogleUtilities</code></td><td class="num">18</td></tr>
+<tr><td><code>FirebaseAnalytics</code></td><td class="num">15</td></tr>
+<tr><td><code>GoogleAppMeasurement</code></td><td class="num">14</td></tr>
+<tr><td><code>GoogleDataTransport</code></td><td class="num">14</td></tr>
+<tr><td><code>FirebaseCoreDiagnostics</code></td><td class="num">13</td></tr>
+<tr><td><code>PromisesObjC</code></td><td class="num">12</td></tr>
+<tr><td><code>GTMSessionFetcher</code></td><td class="num">12</td></tr>
+<tr><td><code>SnapKit</code></td><td class="num">12</td></tr>
+<tr><td><code>SwiftLint</code></td><td class="num">11</td></tr>
+<tr><td><code>RxSwift</code></td><td class="num">11</td></tr>
+</table>
+
+<p><strong>29% of the projects in this corpus depend on Firebase</strong> — and that matters
+more than the December date, because
+<a href="https://firebase.google.com/docs/ios/cocoapods-deprecation">Firebase stops
+publishing new versions to CocoaPods in <strong>October 2026</strong></a>, two months
+earlier. For roughly a third of these projects, the real deadline is not the one in the
+headlines.</p>
+
+<p>It is worth saying plainly what the Firebase data already shows: <code>FirebaseAuth</code>'s
+most recent publish to trunk was <strong>September 2022</strong>. Firebase effectively left
+CocoaPods years ago. If you are still installing it through CocoaPods, you have been running
+on a frozen version for some time without anything telling you.</p>
+
+<h2>A quarter of lockfiles cannot answer the question at all</h2>
+
+<p>26 of 83 lockfiles — <strong>31%</strong> — were written by CocoaPods versions predating
+the <code>SPEC REPOS</code> section, so the file simply does not record where each pod came
+from. The oldest in the corpus was written by CocoaPods <strong>0.33.1</strong>.</p>
+
+<p>For those, the honest answer is "unknown", and any tool that reports them as clean is
+guessing. Re-running <code>pod install</code> with a current CocoaPods rewrites the lockfile
+with source information and makes the question answerable.</p>
+
+<div class="method">
+<strong>Method.</strong> Lockfiles were collected via the GitHub code search API across five
+different queries (<code>SPEC REPOS</code>, <code>Firebase</code>,
+<code>EXTERNAL SOURCES</code>, <code>React-Core</code>, <code>CHECKOUT OPTIONS</code>) to
+avoid sampling one shape of file, deduplicated by repository, and scanned with
+<a href="https://github.com/ntoledo319/podfreeze">podfreeze v0.5.1</a>. A pod counts as
+exposed when the lockfile lists it under the central specs index under any of its spellings
+(<code>trunk</code>, <code>https://github.com/CocoaPods/Specs</code>, with or without
+<code>.git</code>). Pods pinned via <code>EXTERNAL SOURCES</code> or resolving from a private
+spec repo are counted as insulated. Counts were verified against the raw files by an
+independent script, not by the scanner alone.
+</div>
+
+<div class="caveat">
+<strong>What this sample is not.</strong> GitHub code search does not return a random sample
+of iOS projects. It skews toward smaller, older, public repositories — the kind that get
+indexed — and away from large commercial apps, which are mostly private. Treat 96% as
+"nearly every project in this corpus", not as a population estimate for the App Store. The
+direction is solid; the exact figure is not transferable. 83 is also a small sample: it is
+what could be collected and hand-verified in one sitting, and it is stated rather than
+rounded up.
+</div>
+
+<h2>Check your own project</h2>
+
+<p>The measurement above is just this tool run 83 times. You can run it on your own
+lockfile in a browser without installing anything, or from the command line:</p>
+
+<p>
+<a class="btn" href="check.html">Check your Podfile.lock in the browser →</a>
+<a class="btn alt" href="https://github.com/ntoledo319/podfreeze">Source on GitHub</a>
+</p>
+
+<p>Nothing is uploaded by the browser checker, and the free command-line scan makes zero
+network calls.</p>
+
+<footer>
+podfreeze is free and MIT-licensed. Measured 15 September 2026.
+<a href="index.html">About the project</a> ·
+<a href="https://github.com/ntoledo319/podfreeze/issues">Report an error in this data</a>
+</footer>
+
+</body>
+</html>
