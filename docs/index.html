@@ -67,7 +67,9 @@ security patch after <span class="date">2 December 2026</span>.</p>
 cd your-ios-project
 podfreeze</code></pre>
 
-<p>No signup. No account. Nothing leaves your machine. Open source, MIT.</p>
+<p>No signup. No account. The free scan is fully offline — nothing leaves your machine.
+(Pro looks up the public CocoaPods trunk API for the pod <em>names</em> it found;
+details below.) Open source, MIT.</p>
 
 <a class="btn" href="check.html">Check your Podfile.lock now →</a>
 <a class="btn alt" href="https://github.com/ntoledo319/podfreeze">View on GitHub</a>
@@ -152,9 +154,15 @@ and say you bought a licence. Full refund, no argument, no time limit.</td></tr>
 <a href="https://github.com/ntoledo319/podfreeze">CLI</a> are free, MIT-licensed, and
 not crippled or time-limited. They answer <em>which</em> pods are exposed. Pro answers
 what to do about each.</td></tr>
-<tr><td><strong>Do you see my code?</strong></td><td>No. The browser checker runs entirely
-client-side. The CLI reads your lockfile locally; Pro queries only the public CocoaPods
-trunk API for the pod <em>names</em> it found. No telemetry, ever.</td></tr>
+<tr><td><strong>Do you see my code?</strong></td><td>No, and I never receive anything —
+  there is no podfreeze server. The browser checker runs entirely client-side. The free CLI
+  scan is <strong>fully offline</strong>: zero network calls, verified by test. Pro queries
+  two <em>public third parties</em> — <code>trunk.cocoapods.org</code> and
+  <code>raw.githubusercontent.com</code> — sending only the pod <em>name</em> in the URL, to
+  find the last published date and whether a SwiftPM package exists. Your lockfile contents
+  are never transmitted. If your lockfile contains private pod names you would rather not
+  disclose to those hosts, use the free scan, which makes no requests at all. No telemetry,
+  ever.</td></tr>
 <tr><td><strong>Is this a subscription?</strong></td><td>No. One payment, permanent
 licence, offline verification. Nothing recurs.</td></tr>
 <tr><td><strong>Who is behind it?</strong></td><td>Toledo Technologies LLC. Payments are
