@@ -285,3 +285,47 @@ def test_audit_triages_instead_of_dumping_a_wall(tmp_path, monkeypatch):
     # the starting pods must be the live ones, not the ancient ones
     start = md.split("Start with the", 1)[1][:200]
     assert "LivePod" in start and "FrozenPod" not in start
+
+
+def test_free_scan_leads_with_a_summary_not_a_wall(tmp_path, capsys):
+    """A real project exposes 69 pods. An alphabetical dump teaches nothing.
+
+    The free tier cannot rank by publish date -- that needs network, and the free scan
+    makes zero calls -- but it can state how many of the examined pods are exposed and
+    how many face an earlier vendor cutoff, both computable offline.
+    """
+    from podfreeze.cli import main
+
+    pods = [f"PodNum{i:02d}" for i in range(15)] + ["FirebaseAuth", "GoogleUtilities"]
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(
+        "PODS:\n" + "".join(f"  - {p} (1.0)\n" for p in pods) + "\n"
+        "DEPENDENCIES:\n" + "".join(f"  - {p}\n" for p in pods) + "\n"
+        "SPEC REPOS:\n  trunk:\n" + "".join(f"    - {p}\n" for p in pods) + "\n"
+        "COCOAPODS: 1.15.2\n")
+    main([str(lock)])
+    out = capsys.readouterr().out
+
+    assert f"{len(pods)} of {len(pods)} pod(s) resolve from CocoaPods trunk" in out, (
+        "the free scan no longer states the exposed-of-examined ratio up front")
+    assert "2 of them face an EARLIER vendor cutoff" in out, (
+        "the free scan no longer counts the pods with an earlier deadline")
+    # the marker must land on the vendor pods and nothing else
+    marked = [l for l in out.splitlines() if "earlier deadline" in l]
+    assert len(marked) == 2, f"expected 2 marked pods, got {len(marked)}"
+    assert any("FirebaseAuth" in l for l in marked)
+    assert any("GoogleUtilities" in l for l in marked)
+    assert not any("PodNum" in l for l in marked), "marker leaked onto unaffected pods"
+
+
+def test_singular_grammar_when_one_pod_has_an_earlier_cutoff(tmp_path, capsys):
+    """'1 of them face' is wrong; a report that reads badly reads as careless."""
+    from podfreeze.cli import main
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(
+        "PODS:\n  - FirebaseAuth (1.0)\n  - Alamofire (5.8.1)\n\n"
+        "DEPENDENCIES:\n  - FirebaseAuth\n  - Alamofire\n\n"
+        "SPEC REPOS:\n  trunk:\n    - FirebaseAuth\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
+    main([str(lock)])
+    out = capsys.readouterr().out
+    assert "1 of them faces an EARLIER" in out, "singular grammar regressed"

@@ -63,11 +63,22 @@ def render(rep: Report, path: Path) -> str:
 
     exposed = rep.exposed
     if exposed:
-        a(f"  {len(exposed)} pod(s) resolve from CocoaPods trunk:")
+        # On a real project this list runs to 69 entries. An alphabetical dump with no
+        # summary is a wall: the reader has to scroll the whole thing to learn anything.
+        # The free tier cannot rank by publish date (that needs network, and the free
+        # scan makes zero calls), but it CAN say how many, and which vendors have an
+        # earlier deadline than the freeze. That is the actionable part, offline.
+        early = sorted({f.pod.name.split("/")[0] for f in exposed
+                        if vendor_cutoff(f.pod.name)})
+        a(f"  {len(exposed)} of {rep.examined} pod(s) resolve from CocoaPods trunk:")
+        if early:
+            verb = "faces" if len(early) == 1 else "face"
+            a(f"  {len(early)} of them {verb} an EARLIER vendor cutoff, marked below.")
         a("")
         for f in exposed:
             ver = f" {f.pod.version}" if f.pod.version else ""
-            a(f"    - {f.pod.name}{ver}")
+            mark = "  <-- earlier deadline" if vendor_cutoff(f.pod.name) else ""
+            a(f"    - {f.pod.name}{ver}{mark}")
         a("")
     ins = rep.insulated
     if ins:
