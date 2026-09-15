@@ -333,3 +333,80 @@ def test_paid_audit_silent_without_affected_vendors(tmp_path):
     )
     md = render_markdown(run_audit(tmp_path), tmp_path)
     assert "Earlier than the freeze" not in md
+
+
+REAL_RN_LOCK = """PODS:
+  - Alamofire (5.8.1)
+  - React-Core (0.72.6):
+    - glog
+    - RCT-Folly (= 2021.07.22.00)
+    - React-Core/Default (= 0.72.6)
+  - React-Core/Default (0.72.6):
+    - glog
+  - FirebaseAuth (10.18.0):
+    - FirebaseCore (~> 10.0)
+  - glog (0.3.5)
+
+DEPENDENCIES:
+  - React-Core (from `../node_modules/react-native/`)
+  - FirebaseAuth
+  - Alamofire
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+    - FirebaseAuth
+    - glog
+
+EXTERNAL SOURCES:
+  React-Core:
+    :path: "../node_modules/react-native/"
+
+SPEC CHECKSUMS:
+  Alamofire: 3ca42e259043ee0dc5c0cdd76c4bc568b8e42af7
+
+COCOAPODS: 1.15.2
+"""
+
+
+def test_real_react_native_lockfile_shape(tmp_path, capsys):
+    """Nested deps with colons are the COMMON real-world shape, not an edge case.
+
+    A React Native Podfile.lock is what a large share of real iOS projects actually
+    have. If this shape breaks, the tool is useless to most of its audience.
+    """
+    from podfreeze.cli import main
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(REAL_RN_LOCK)
+    assert main([str(lock)]) == 0
+    out = capsys.readouterr().out
+    assert "Alamofire" in out and "FirebaseAuth" in out and "glog" in out
+    # React-Core is pinned via EXTERNAL SOURCES and must NOT be called exposed
+    assert "EXTERNAL SOURCES" in out or "insulated" in out
+    # the vendor cutoff must still surface through a nested entry
+    assert "EARLIER DEADLINE" in out
+
+
+def test_subspec_resolves_to_parent_vendor(tmp_path, capsys):
+    """FirebaseFirestore/Swift must inherit FirebaseFirestore's cutoff."""
+    from podfreeze.cli import main
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(
+        "PODS:\n  - FirebaseFirestore/Swift (10.18.0)\n\n"
+        "DEPENDENCIES:\n  - FirebaseFirestore/Swift\n\n"
+        "SPEC REPOS:\n  trunk:\n    - FirebaseFirestore\n\nCOCOAPODS: 1.15.2\n"
+    )
+    main([str(lock)])
+    assert "EARLIER DEADLINE" in capsys.readouterr().out
+
+
+def test_malformed_entry_refuses_rather_than_guesses(tmp_path):
+    """A pod line the parser cannot read must FAIL, never be silently dropped."""
+    from podfreeze.cli import main
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(
+        "PODS:\n  - React-Core (0.0.0) - React-Core/Core (= 0.0.0)\n\n"
+        "DEPENDENCIES:\n  - React-Core\n\nSPEC REPOS:\n  trunk:\n    - React-Core\n\n"
+        "COCOAPODS: 1.15.2\n"
+    )
+    assert main([str(lock)]) == 3, "unparseable input must exit non-zero, not report clean"
