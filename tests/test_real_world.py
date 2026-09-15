@@ -144,3 +144,31 @@ def test_pod_from_unsuffixed_trunk_url_is_reported_exposed():
         f"got {by_name.get('GoogleUtilities')!r} — a false 'insulated' verdict"
     )
     assert by_name.get("Alamofire") == "trunk"
+
+
+# Spec-repo spellings observed across 83 real public lockfiles. The first three are all
+# the central index; the last two are genuinely private and must never be called trunk.
+OBSERVED_REPOS = [
+    ("trunk", True),
+    ("https://github.com/CocoaPods/Specs", True),
+    ("https://github.com/CocoaPods/Specs.git", True),
+    ("https://github.com/cocoapods/specs.git", True),
+    ("git@github.com:StandardCyborg/SCCocoaPods.git", False),
+    ("https://github.com/innovatrics/innovatrics-podspecs", False),
+]
+
+
+@pytest.mark.parametrize("spelling,is_trunk", OBSERVED_REPOS)
+def test_observed_spec_repo_spellings(spelling, is_trunk):
+    """Every spelling seen in the wild must classify correctly.
+
+    Three distinct spellings of the central index appeared across 83 real lockfiles.
+    Treating any of them as private produces a false all-clear; treating a genuinely
+    private repo as trunk produces a false alarm that gets the tool uninstalled.
+    """
+    from podfreeze.parser import _normalise_repo, TRUNK_REPO_NORMALISED
+
+    got = _normalise_repo(spelling) in TRUNK_REPO_NORMALISED
+    assert got is is_trunk, (
+        f"{spelling!r}: classified trunk={got}, expected trunk={is_trunk}"
+    )
