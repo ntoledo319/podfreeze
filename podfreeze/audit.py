@@ -289,6 +289,17 @@ def render_markdown(audit: Audit, root: Path) -> str:
       "rejected rather than risk naming a stranger's copy as your migration target. "
       "**Check the pod's own README before concluding there is no migration route.**")
     a("")
+    # A rate-limited run produces the same "not found" as a genuine negative. Saying so
+    # is the difference between a degraded report and a misleading one.
+    from .enrich import SEARCH_BLOCKED
+    blocked = SEARCH_BLOCKED.get("count", 0)
+    if blocked:
+        a(f"> **This run was rate-limited.** GitHub refused **{blocked}** search "
+          f"request(s), so some rows above say \"not found\" because the probe could not "
+          f"run, not because nothing was found. Unauthenticated GitHub search allows 10 "
+          f"requests per minute. Re-run later, or with `GH_TOKEN` set, for a complete "
+          f"answer.")
+        a("")
     a("**No CVE data is included.** No vulnerability database covers the CocoaPods "
       "ecosystem: OSV.dev rejects `CocoaPods` as an invalid ecosystem and GitHub's "
       "advisory API returns 422 for `cocoapods`. A per-pod CVE lookup would return "

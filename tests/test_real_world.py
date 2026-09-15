@@ -394,3 +394,58 @@ def test_swiftpm_unknown_is_not_stated_as_absent(tmp_path, monkeypatch):
         "the report no longer explains that an unresolved probe is not proof of absence")
     assert "Check the pod's own README" in md, (
         "the report no longer tells the reader how to settle it themselves")
+
+
+def test_rate_limited_run_says_so(tmp_path, monkeypatch):
+    """A rate-limited report must not look like a complete one.
+
+    Unauthenticated GitHub search allows 10 requests per minute; a real audit needs far
+    more. Without this, 58 rows read 'not found' because the probe could not run, and a
+    buyer cannot tell that from a genuine negative.
+    """
+    from podfreeze import audit as audit_mod
+    from podfreeze import enrich as en
+    from podfreeze.enrich import Enrichment
+
+    proj = tmp_path / "App"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - SomePod (1.0)\n\nDEPENDENCIES:\n  - SomePod\n\n"
+        "SPEC REPOS:\n  trunk:\n    - SomePod\n\nCOCOAPODS: 1.15.2\n")
+    monkeypatch.setattr(audit_mod, "enrich", lambda names, workers=8: [
+        Enrichment(pod=n, latest_version="1.0", latest_published="2026-01-01",
+                   total_versions=3, swiftpm_available=None) for n in names])
+
+    en.SEARCH_BLOCKED["count"] = 0
+    md_clean = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+    assert "rate-limited" not in md_clean.lower(), (
+        "a clean run should not claim it was rate-limited")
+
+    en.SEARCH_BLOCKED["count"] = 17
+    try:
+        md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+        assert "This run was rate-limited" in md, (
+            "a rate-limited run produces the same 'not found' as a real negative and "
+            "must say so")
+        assert "17" in md, "the report does not say how many lookups were refused"
+        assert "GH_TOKEN" in md, "the report does not tell the reader how to fix it"
+    finally:
+        en.SEARCH_BLOCKED["count"] = 0
+
+
+def test_rate_limit_counter_increments_only_on_throttling(monkeypatch):
+    """A 404 is a verdict about the pod; a 403 is a verdict about the request."""
+    import io
+    import urllib.error
+    from podfreeze import enrich as en
+
+    for code, should_count in ((403, True), (429, True), (404, False), (500, False)):
+        en.SEARCH_BLOCKED["count"] = 0
+        def boom(req, *a, _c=code, **k):
+            url = req.get_full_url() if hasattr(req, "get_full_url") else str(req)
+            raise urllib.error.HTTPError(url, _c, "x", {}, io.BytesIO(b"{}"))
+        monkeypatch.setattr(en.urllib.request, "urlopen", boom)
+        en._search_swiftpm("AnyPod")
+        got = en.SEARCH_BLOCKED["count"] > 0
+        assert got is should_count, f"HTTP {code}: counted={got}, expected {should_count}"
+    en.SEARCH_BLOCKED["count"] = 0

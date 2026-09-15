@@ -191,8 +191,17 @@ def find_swiftpm(name: str, cocoapods_doc: dict | None = None) -> tuple[str | No
     return repo, None
 
 
+SEARCH_BLOCKED = {"count": 0}
+
+
 def _search_swiftpm(pod: str) -> tuple[str | None, bool]:
-    """Find a canonical repo for a pod via GitHub search, or give up honestly."""
+    """Find a canonical repo for a pod via GitHub search, or give up honestly.
+
+    Records rate-limit refusals in SEARCH_BLOCKED so the report can tell a reader that
+    the probe could not run, rather than presenting 58 unresolved rows that look
+    identical to a genuine negative. Unauthenticated GitHub search allows only 10
+    requests per minute; a real audit needs far more.
+    """
     try:
         import json as _json
         url = ("https://api.github.com/search/repositories?q="
@@ -201,6 +210,11 @@ def _search_swiftpm(pod: str) -> tuple[str | None, bool]:
                                                    "Accept": "application/vnd.github+json"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
             items = _json.loads(r.read()).get("items", [])
+    except urllib.error.HTTPError as e:
+        # 403/429 from search is a rate limit, not a verdict about the pod.
+        if e.code in (403, 429):
+            SEARCH_BLOCKED["count"] += 1
+        return None, False
     except Exception:  # noqa: BLE001 - search is a bonus, never a requirement
         return None, False
 
