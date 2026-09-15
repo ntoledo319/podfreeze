@@ -1,0 +1,59 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest tests -q
+
+  action-selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create a fixture Podfile.lock
+        run: |
+          cat > Podfile.lock <<'EOF'
+          PODS:
+            - Alamofire (5.8.1)
+            - InternalAuth (2.1.0)
+
+          DEPENDENCIES:
+            - Alamofire
+            - InternalAuth
+
+          SPEC REPOS:
+            trunk:
+              - Alamofire
+            https://github.internal.example/Specs.git:
+              - InternalAuth
+
+          COCOAPODS: 1.15.2
+          EOF
+
+      - name: Run the action against the fixture
+        id: scan
+        uses: ./
+        with:
+          path: Podfile.lock
+
+      - name: Assert the action reported the expected counts
+        run: |
+          echo "exposed=${{ steps.scan.outputs.exposed-count }} examined=${{ steps.scan.outputs.examined-count }}"
+          test "${{ steps.scan.outputs.exposed-count }}" = "1"
+          test "${{ steps.scan.outputs.examined-count }}" = "2"
+          echo "action self-test passed"

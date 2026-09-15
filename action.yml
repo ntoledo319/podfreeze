@@ -1,0 +1,67 @@
+name: 'podfreeze'
+description: 'Report which CocoaPods dependencies can never receive another published version after the 2 Dec 2026 trunk freeze'
+author: 'Toledo Technologies'
+branding:
+  icon: 'alert-triangle'
+  color: 'orange'
+
+inputs:
+  path:
+    description: 'Path to Podfile.lock (or a directory containing one)'
+    required: false
+    default: 'Podfile.lock'
+  fail-on-exposed:
+    description: 'Exit non-zero if any pod resolves from trunk'
+    required: false
+    default: 'false'
+  license:
+    description: 'podfreeze Pro licence key (enables --pro migration plan)'
+    required: false
+    default: ''
+
+outputs:
+  exposed-count:
+    description: 'Number of pods resolving from CocoaPods trunk'
+    value: ${{ steps.scan.outputs.exposed-count }}
+  examined-count:
+    description: 'Number of pods examined'
+    value: ${{ steps.scan.outputs.examined-count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install podfreeze
+      shell: bash
+      run: pip install --quiet "podfreeze @ git+https://github.com/ntoledo319/podfreeze@main"
+
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        PODFREEZE_LICENSE: ${{ inputs.license }}
+      run: |
+        set -o pipefail
+        REPORT=$(podfreeze --json "${{ inputs.path }}")
+        echo "$REPORT" > podfreeze-report.json
+
+        EXPOSED=$(python3 -c "import json;d=json.load(open('podfreeze-report.json'));print(d['counts'].get('trunk',0))")
+        EXAMINED=$(python3 -c "import json;d=json.load(open('podfreeze-report.json'));print(d['examined'])")
+        echo "exposed-count=$EXPOSED" >> "$GITHUB_OUTPUT"
+        echo "examined-count=$EXAMINED" >> "$GITHUB_OUTPUT"
+
+        # Human-readable run, including the Pro plan when a licence is supplied.
+        if [ -n "${PODFREEZE_LICENSE}" ]; then
+          podfreeze --pro "${{ inputs.path }}" | tee -a "$GITHUB_STEP_SUMMARY"
+        else
+          podfreeze "${{ inputs.path }}" | tee -a "$GITHUB_STEP_SUMMARY"
+        fi
+
+        if [ "${{ inputs.fail-on-exposed }}" = "true" ] && [ "$EXPOSED" -gt 0 ]; then
+          echo "::error::$EXPOSED pod(s) resolve from CocoaPods trunk and cannot receive published updates after 2026-12-02"
+          exit 1
+        fi
