@@ -24,7 +24,7 @@ from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse, vendor_cutoff
 from .parser import ParseError, parse
 from .pro import render_pro, verify_license
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 SOURCE = "https://blog.cocoapods.org/CocoaPods-Specs-Repo/"
 

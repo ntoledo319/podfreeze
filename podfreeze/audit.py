@@ -18,7 +18,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .analyse import FREEZE_DATE, analyse
+from .analyse import FREEZE_DATE, analyse, vendor_cutoff
 from .enrich import Enrichment, enrich
 from .parser import ParseError, parse
 
@@ -146,6 +146,25 @@ def render_markdown(audit: Audit, root: Path) -> str:
           "The freeze does not change how these projects receive updates.")
         a("")
         return "\n".join(L)
+
+    # --- Vendor cutoffs that land BEFORE the trunk freeze ---
+    early = sorted({p.split("/")[0] for p in usage if vendor_cutoff(p)})
+    if early:
+        a("## Earlier than the freeze — vendor publishing cutoffs")
+        a("")
+        a("These vendors stop publishing to CocoaPods **before** the trunk freeze. For "
+          "any pod listed here, the vendor's date is your real deadline, not "
+          f"{FREEZE_DATE}.")
+        a("")
+        a("| Pod | Vendor stops publishing | Projects affected |")
+        a("|---|---|---|")
+        for pod in early:
+            n = len({proj for p, projects in usage.items()
+                     for proj in projects if p.split("/")[0] == pod})
+            a(f"| `{pod}` | **{vendor_cutoff(pod)}** | {n} |")
+        a("")
+        a("Source: <https://firebase.google.com/docs/ios/cocoapods-deprecation>")
+        a("")
 
     # --- Priority order, evidence-based ---
     a("## What to deal with first")

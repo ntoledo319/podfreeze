@@ -306,3 +306,30 @@ def test_no_firebase_means_no_earlier_deadline_noise(tmp_path, capsys):
     )
     main([str(lock)])
     assert "EARLIER DEADLINE" not in capsys.readouterr().out
+
+
+def test_paid_audit_reports_vendor_cutoffs(tmp_path):
+    """The $499 report must not be BEHIND the free CLI on vendor deadlines."""
+    from podfreeze.audit import run_audit, render_markdown
+    proj = tmp_path / "AppA"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - FirebaseAuth (10.0.0)\n\nDEPENDENCIES:\n  - FirebaseAuth\n\n"
+        "SPEC REPOS:\n  trunk:\n    - FirebaseAuth\n\nCOCOAPODS: 1.15.2\n"
+    )
+    md = render_markdown(run_audit(tmp_path), tmp_path)
+    assert "Earlier than the freeze" in md
+    assert "FirebaseAuth" in md
+    assert "2026-10" in md
+
+
+def test_paid_audit_silent_without_affected_vendors(tmp_path):
+    from podfreeze.audit import run_audit, render_markdown
+    proj = tmp_path / "AppB"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+        "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n"
+    )
+    md = render_markdown(run_audit(tmp_path), tmp_path)
+    assert "Earlier than the freeze" not in md
