@@ -1,0 +1,77 @@
+name: consumer-simulation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # Simulates how a real iOS team would consume the action from their own repo
+  as-a-consumer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create a realistic multi-app iOS repo
+        run: |
+          mkdir -p AppOne AppTwo Vendor/Pods
+          cat > AppOne/Podfile.lock <<'EOF'
+          PODS:
+            - Alamofire (5.8.1)
+            - SDWebImage (5.18.10)
+
+          DEPENDENCIES:
+            - Alamofire
+            - SDWebImage
+
+          SPEC REPOS:
+            trunk:
+              - Alamofire
+              - SDWebImage
+
+          COCOAPODS: 1.15.2
+          EOF
+          cat > AppTwo/Podfile.lock <<'EOF'
+          PODS:
+            - InternalKit (2.0.0)
+
+          DEPENDENCIES:
+            - InternalKit
+
+          SPEC REPOS:
+            https://github.internal.example/Specs.git:
+              - InternalKit
+
+          COCOAPODS: 1.15.2
+          EOF
+          cp AppOne/Podfile.lock Vendor/Pods/Podfile.lock
+
+      - name: Run the action as a consumer would
+        id: scan
+        uses: ./
+        with:
+          path: AppOne/Podfile.lock
+
+      - name: Assert the consumer gets correct results
+        run: |
+          echo "exposed=${{ steps.scan.outputs.exposed-count }} examined=${{ steps.scan.outputs.examined-count }}"
+          test "${{ steps.scan.outputs.exposed-count }}" = "2"
+          test "${{ steps.scan.outputs.examined-count }}" = "2"
+
+      - name: fail-on-exposed must actually FAIL the build
+        id: shouldfail
+        continue-on-error: true
+        uses: ./
+        with:
+          path: AppOne/Podfile.lock
+          fail-on-exposed: 'true'
+
+      - name: Assert it really failed
+        run: |
+          test "${{ steps.shouldfail.outcome }}" = "failure" \
+            && echo "fail-on-exposed correctly failed the step" \
+            || (echo "::error::fail-on-exposed did NOT fail — the gate is useless"; exit 1)
+
+      - name: Insulated project must NOT fail even with fail-on-exposed
+        uses: ./
+        with:
+          path: AppTwo/Podfile.lock
+          fail-on-exposed: 'true'
