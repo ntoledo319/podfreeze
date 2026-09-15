@@ -116,6 +116,39 @@ apps each dying pod appears in, ranked by how long it has already been static.</
 <p>Licence keys verify <strong>offline</strong>. No phone-home, no telemetry, no account.
 Works air-gapped.</p>
 
+<h2>Before you buy</h2>
+
+<p>You are buying from a vendor you have not heard of, so here is everything you would
+reasonably want to know first.</p>
+
+<table>
+<tr><th>Question</th><th>Answer</th></tr>
+<tr><td><strong>How is it delivered?</strong></td><td>Your licence key appears on the
+confirmation page immediately after payment, and in your Stripe receipt. Nothing to wait
+for, no email required.</td></tr>
+<tr><td><strong>What if it doesn't work?</strong></td><td>Open an issue at
+<a href="https://github.com/ntoledo319/podfreeze/issues">github.com/ntoledo319/podfreeze/issues</a>
+and say you bought a licence. Full refund, no argument, no time limit.</td></tr>
+<tr><td><strong>Can I try before paying?</strong></td><td>Yes — the
+<a href="check.html">browser checker</a> and the
+<a href="https://github.com/ntoledo319/podfreeze">CLI</a> are free, MIT-licensed, and
+not crippled or time-limited. They answer <em>which</em> pods are exposed. Pro answers
+what to do about each.</td></tr>
+<tr><td><strong>Do you see my code?</strong></td><td>No. The browser checker runs entirely
+client-side. The CLI reads your lockfile locally; Pro queries only the public CocoaPods
+trunk API for the pod <em>names</em> it found. No telemetry, ever.</td></tr>
+<tr><td><strong>Is this a subscription?</strong></td><td>No. One payment, permanent
+licence, offline verification. Nothing recurs.</td></tr>
+<tr><td><strong>Who is behind it?</strong></td><td>Toledo Technologies LLC. Payments are
+processed by Stripe.</td></tr>
+</table>
+
+<div class="note">
+<strong>Should you buy this?</strong> If the free tier told you that no pods are exposed,
+you do not need Pro — and I would rather say that than take your money. Pro is worth
+paying for when you have several exposed pods and need to decide what to deal with first.
+</div>
+
 <h2>What Pro deliberately does not include</h2>
 
 <p><strong>No CVE data.</strong> There is no vulnerability database covering the CocoaPods
