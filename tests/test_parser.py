@@ -127,7 +127,9 @@ def test_audit_skips_vendored_pods_dir(tmp_path):
     (tmp_path / "Pods").mkdir()
     (tmp_path / "Pods" / "Podfile.lock").write_text(fx.MIXED)
     (tmp_path / "Podfile.lock").write_text(fx.MIXED)
-    assert len(discover(tmp_path)) == 1
+    found, unreadable = discover(tmp_path)
+    assert len(found) == 1
+    assert unreadable == []
 
 
 def test_audit_reports_unparseable_files_instead_of_skipping(tmp_path):

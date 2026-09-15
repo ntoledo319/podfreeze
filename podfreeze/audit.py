@@ -13,6 +13,8 @@ There are no invented effort hours, no made-up risk scores, no severity theatre.
 """
 from __future__ import annotations
 
+import os
+
 import datetime as _dt
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -38,6 +40,9 @@ class ProjectResult:
 class Audit:
     projects: list[ProjectResult] = field(default_factory=list)
     enrichment: dict[str, Enrichment] = field(default_factory=dict)
+    # Paths the walk could not examine at all: an unreadable directory, a broken
+    # symlink. Distinct from failed_projects, which were found and could not be parsed.
+    unreadable: list[str] = field(default_factory=list)
 
     @property
     def ok_projects(self) -> list[ProjectResult]:
@@ -56,24 +61,47 @@ class Audit:
         return dict(usage)
 
 
-def discover(root: Path, max_depth: int = 6) -> list[Path]:
-    """Find every Podfile.lock under root. Skips vendored/build dirs."""
+def discover(root: Path, max_depth: int = 6) -> tuple[list[Path], list[str]]:
+    """Find every Podfile.lock under root, and report what could not be examined.
+
+    Returns (found, unreadable). `rglob` silently swallows a directory it cannot enter,
+    and a dangling symlink never matches at all -- so a permission-restricted project
+    simply vanished from the audit rather than appearing as a gap. That is the exact
+    failure this tool exists to expose: absence of data presented as coverage.
+    """
     skip = {"Pods", "node_modules", ".git", "build", "DerivedData", ".build",
             "Carthage", "vendor", ".venv"}
     found: list[Path] = []
+    unreadable: list[str] = []
     root = root.resolve()
-    for p in root.rglob("Podfile.lock"):
+
+    for dirpath, dirnames, filenames in os.walk(root, onerror=lambda e: unreadable.append(
+            f"{getattr(e, 'filename', '?')}: {getattr(e, 'strerror', e)}")):
+        here = Path(dirpath)
+        dirnames[:] = [d for d in dirnames if d not in skip]
+        try:
+            depth = len(here.relative_to(root).parts)
+        except ValueError:
+            continue
+        if depth >= max_depth:
+            dirnames[:] = []
+        if "Podfile.lock" not in filenames and "Podfile.lock" not in dirnames:
+            continue
+        p = here / "Podfile.lock"
         if any(part in skip for part in p.parts):
             continue
-        if len(p.relative_to(root).parts) > max_depth:
+        if p.is_symlink() and not p.exists():
+            unreadable.append(f"{p}: broken symlink")
             continue
         found.append(p)
-    return sorted(found)
+
+    return sorted(found), unreadable
 
 
 def run_audit(root: Path) -> Audit:
     audit = Audit()
-    locks = discover(root)
+    locks, unreadable = discover(root)
+    audit.unreadable = unreadable
     all_exposed: set[str] = set()
 
     for lock_path in locks:
@@ -160,6 +188,10 @@ def render_markdown(audit: Audit, root: Path) -> str:
         a(f"| — publication dates | **could not be determined for any pod** |")
     if audit.failed_projects:
         a(f"| Projects that could not be parsed | {len(audit.failed_projects)} |")
+    if audit.unreadable:
+        # Paths the walk could not even look at. Omitting these would present partial
+        # coverage as complete -- the exact failure this report exists to expose.
+        a(f"| **Paths that could not be examined** | **{len(audit.unreadable)}** |")
     a("")
 
     if not usage:
@@ -283,6 +315,18 @@ def render_markdown(audit: Audit, root: Path) -> str:
         a("")
         for p in audit.failed_projects:
             a(f"- `{p.path}` — {p.error}")
+        a("")
+
+    if audit.unreadable:
+        a("## Could not be examined")
+        a("")
+        a("These paths were not scanned at all -- an unreadable directory, or a broken "
+          "symlink. **This report does not cover them.** A project hidden behind one of "
+          "these is not reported as clean; it is not reported at all, which is why it is "
+          "listed here.")
+        a("")
+        for u in audit.unreadable:
+            a(f"- `{u}`")
         a("")
 
     a("## Method")

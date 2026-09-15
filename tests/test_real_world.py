@@ -594,3 +594,41 @@ def test_symlinked_lockfile_is_followed(tmp_path, capsys):
     os.symlink(real, proj / "Podfile.lock")
     assert main([str(proj)]) == 0
     assert "Alamofire" in capsys.readouterr().out
+
+
+def test_audit_reports_paths_it_could_not_examine(tmp_path):
+    """A project the walk cannot enter must appear as a gap, not vanish.
+
+    rglob silently swallows an unreadable directory and never matches a dangling
+    symlink, so a permission-restricted project simply disappeared from the audit --
+    leaving a report that presents partial coverage as complete.
+    """
+    import os
+    import stat
+    import pytest
+    from podfreeze.audit import discover, run_audit, render_markdown
+
+    good = ("PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+            "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
+    (tmp_path / "Good").mkdir()
+    (tmp_path / "Good" / "Podfile.lock").write_text(good)
+    (tmp_path / "Broken").mkdir()
+    os.symlink("/nonexistent/nowhere.lock", tmp_path / "Broken" / "Podfile.lock")
+    (tmp_path / "NoPerm").mkdir()
+    (tmp_path / "NoPerm" / "Podfile.lock").write_text(good)
+    os.chmod(tmp_path / "NoPerm", 0o000)
+
+    try:
+        if os.access(tmp_path / "NoPerm", os.R_OK):
+            pytest.skip("cannot make a directory unreadable as this user")
+        found, unreadable = discover(tmp_path)
+        assert len(found) == 1, f"expected only the readable project, got {found}"
+        assert any("broken symlink" in u for u in unreadable), unreadable
+        assert any("NoPerm" in u for u in unreadable), unreadable
+
+        md = render_markdown(run_audit(tmp_path), tmp_path)
+        assert "Paths that could not be examined" in md
+        assert "Could not be examined" in md
+        assert "does not cover them" in md
+    finally:
+        os.chmod(tmp_path / "NoPerm", stat.S_IRWXU)
