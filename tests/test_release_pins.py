@@ -10,15 +10,39 @@ A stale pin is worse than no pin, because it looks deliberate.
 from __future__ import annotations
 
 import re
-import tomllib
 from pathlib import Path
+
+try:  # tomllib is stdlib on 3.11+; this package supports 3.9
+    import tomllib  # type: ignore[import-not-found]
+
+    def _load_toml(text: str) -> dict:
+        return tomllib.loads(text)
+except ModuleNotFoundError:  # pragma: no cover - exercised on 3.9/3.10 CI
+    def _load_toml(text: str) -> dict:
+        """Minimal read of the one field we need, without adding a dependency.
+
+        Deliberately narrow: it reads `version = "..."` from the [project] table and
+        nothing else. A parser that silently returned no version would disarm this
+        test, so a missing version raises instead.
+        """
+        in_project = False
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("["):
+                in_project = stripped == "[project]"
+                continue
+            if in_project:
+                m = re.match(r'version\s*=\s*"([^"]+)"', stripped)
+                if m:
+                    return {"project": {"version": m.group(1)}}
+        raise AssertionError("could not find project.version in pyproject.toml")
 
 ROOT = Path(__file__).resolve().parent.parent
 PIN_RE = re.compile(r"podfreeze@v(\d+\.\d+\.\d+)")
 
 
 def shipping_version() -> str:
-    data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    data = _load_toml((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     return data["project"]["version"]
 
 
