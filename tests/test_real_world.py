@@ -208,3 +208,37 @@ def test_pro_order_of_work_text_is_not_backwards():
     assert "Actively-published pods are lower priority" not in out, (
         "--pro still tells buyers actively-published pods matter less"
     )
+
+
+def test_every_third_party_fixture_is_attributed():
+    """Redistributing someone else's file requires knowing you may.
+
+    A fixture was originally taken from a repository with NO licence file. No licence
+    means all rights reserved, so redistributing it was not clearly permitted however
+    mundane the content. Every remaining third-party fixture must be credited in
+    ATTRIBUTION.md, which also records its licence.
+    """
+    attribution = (FIXTURES / "ATTRIBUTION.md")
+    assert attribution.exists(), "third-party fixtures require an ATTRIBUTION.md"
+    text = attribution.read_text(encoding="utf-8")
+
+    authored = {"quoted_subspec.lock", "legacy_specs_url.lock"}
+    for lock in sorted(FIXTURES.glob("*.lock")):
+        if lock.name in authored:
+            assert lock.name in text, f"{lock.name} should be listed as authored here"
+            continue
+        assert lock.name in text, (
+            f"{lock.name} is redistributed third-party content with no attribution entry"
+        )
+        # the row naming it must also state a licence
+        row = [ln for ln in text.splitlines() if lock.name in ln]
+        assert any("MIT" in ln or "Apache" in ln or "BSD" in ln for ln in row), (
+            f"{lock.name} is attributed but no permissive licence is recorded"
+        )
+
+
+def test_no_unlicensed_fixture_reintroduced():
+    """The removed fixture must not come back."""
+    assert not (FIXTURES / "beardedspice_beardedspice.lock").exists(), (
+        "a fixture from an unlicensed repository was reintroduced"
+    )

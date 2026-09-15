@@ -7,10 +7,6 @@
     "examined": 8,
     "exposed": 8
   },
-  "beardedspice_beardedspice.lock": {
-    "examined": 5,
-    "exposed": 5
-  },
   "flexlayout.lock": {
     "examined": 4,
     "exposed": 3
@@ -19,5 +15,9 @@
     "examined": 3,
     "exposed": 0,
     "unknown": 2
+  },
+  "legacy_specs_url.lock": {
+    "examined": 5,
+    "exposed": 5
   }
 }

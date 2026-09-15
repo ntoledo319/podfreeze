@@ -1,0 +1,25 @@
+PODS:
+  - ExampleDB (2.6.2):
+    - ExampleDB/standard (= 2.6.2)
+  - ExampleDB/standard (2.6.2)
+  - ExampleKit (2.4.0)
+  - ExamplePrefs (1.1.4)
+  - ExampleShortcut (2.3.3)
+  - ExampleURLConnection (0.2.0)
+
+DEPENDENCIES:
+  - ExampleDB (~> 2.6.2)
+  - ExampleKit
+  - ExamplePrefs (= 1.1.4)
+  - ExampleShortcut (~> 2.3.3)
+  - ExampleURLConnection
+
+SPEC REPOS:
+  https://github.com/cocoapods/specs.git:
+    - ExampleDB
+    - ExampleKit
+    - ExamplePrefs
+    - ExampleShortcut
+    - ExampleURLConnection
+
+COCOAPODS: 1.6.1
