@@ -200,6 +200,14 @@ def _search_swiftpm(pod: str) -> tuple[str | None, bool]:
             continue
         if it.get("stargazers_count", 0) < CANONICAL_STARS:
             continue
+        # Pod names collide ACROSS ecosystems. "Eureka" is both a Swift forms library
+        # (xmartlabs, ~11k stars) and Netflix's Java service registry (~12.7k). Stars
+        # alone would pick the Java one. Requiring a Package.swift already excludes it
+        # in practice, but relying on that is luck rather than design: a Java project
+        # that happens to vendor a Package.swift would slip through.
+        lang = (it.get("language") or "").lower()
+        if lang and lang not in ("swift", "objective-c", "objective-c++", "c", "c++"):
+            continue
         full = it.get("full_name", "")
         for branch in ("main", "master"):
             if _head_ok(RAW_PKG.format(repo=full, branch=branch)):

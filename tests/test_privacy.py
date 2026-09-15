@@ -217,3 +217,36 @@ def test_search_failure_never_breaks_enrichment(monkeypatch):
     monkeypatch.setattr(en.urllib.request, "urlopen", boom)
     slug, ok = en._search_swiftpm("AnyPod")
     assert (slug, ok) == (None, False)
+
+
+def test_search_fallback_rejects_a_cross_ecosystem_name_collision(monkeypatch):
+    """Pod names collide across ecosystems, and stars alone pick the wrong one.
+
+    'Eureka' is a Swift forms library (~11k stars) and ALSO Netflix's Java service
+    registry (~12.7k). Sorting by stars selects the Java project. Requiring a
+    Package.swift happens to exclude it today, but a non-Swift project that vendors one
+    would slip through -- so the language is checked explicitly rather than relied upon
+    by accident.
+    """
+    from podfreeze import enrich as en
+
+    items = {"items": [
+        {"name": "Eureka", "full_name": "Netflix/eureka", "fork": False,
+         "stargazers_count": 12742, "language": "Java"},
+        {"name": "Eureka", "full_name": "xmartlabs/Eureka", "fork": False,
+         "stargazers_count": 11000, "language": "Swift"},
+    ]}
+
+    class FakeResp:
+        def __init__(self, payload): self._p = payload
+        def read(self): import json; return json.dumps(self._p).encode()
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(en.urllib.request, "urlopen", lambda *a, **k: FakeResp(items))
+    monkeypatch.setattr(en, "_head_ok", lambda url: True)  # both would "have" a Package.swift
+
+    slug, ok = en._search_swiftpm("Eureka")
+    assert ok is True, "the Swift library should still resolve"
+    assert slug == "xmartlabs/Eureka", (
+        f"picked {slug!r} - a higher-starred project from another ecosystem")
