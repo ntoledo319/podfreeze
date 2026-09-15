@@ -82,3 +82,50 @@ def test_no_third_party_repository_names_published():
 def test_dataset_licence_permits_reuse():
     """Data nobody may reuse is not a contribution."""
     assert "CC0" in _data()["licence"], "dataset must carry an open licence"
+
+
+def test_publish_dates_in_prose_match_the_dataset():
+    """Every date stated on the page must come from the dataset, not from memory.
+
+    The page originally claimed 'Firebase effectively left CocoaPods years ago' on the
+    strength of one pod. Checking the whole family showed the Firebase-branded pods are
+    frozen at 2022 but their dependencies -- GoogleUtilities, GTMSessionFetcher,
+    PromisesObjC -- shipped releases in 2026. The page understated the risk.
+    """
+    import re as _re
+
+    d = _data()
+    by_pod = {p["pod"]: p for p in d["most_commonly_exposed_pods"]}
+    html = HTML.read_text(encoding="utf-8")
+
+    months = {"Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05",
+              "Jun": "06", "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10",
+              "Nov": "11", "Dec": "12"}
+
+    rows = _re.findall(
+        r"<tr><td><code>(\w+)</code></td><td>(\d{1,2}) (\w{3}) (\d{4})</td>", html)
+    assert rows, "no pod/date rows found on the page"
+
+    for pod, day, mon, year in rows:
+        assert pod in by_pod, f"page names {pod}, which is not in the dataset"
+        want = f"{year}-{months[mon]}-{int(day):02d}"
+        got = by_pod[pod].get("last_published")
+        assert got == want, f"{pod}: page says {want}, dataset says {got}"
+
+
+def test_actively_publishing_pods_are_distinguished():
+    """The page must separate 'already static' from 'still shipping'.
+
+    Both are exposed, but only the second loses a live channel at the freeze. Collapsing
+    them tells a reader the wrong thing about what to migrate first.
+    """
+    html = HTML.read_text(encoding="utf-8")
+    assert "Which exposures actually change anything" in html, (
+        "the section distinguishing live from static exposure was removed"
+    )
+    d = _data()
+    live = [p for p in d["most_commonly_exposed_pods"]
+            if p.get("last_published", "") >= "2025-01-01"]
+    assert len(live) >= 5, (
+        f"expected several actively-publishing pods in the dataset, found {len(live)}"
+    )

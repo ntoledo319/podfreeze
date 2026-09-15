@@ -30,83 +30,143 @@
   "most_commonly_exposed_pods": [
     {
       "pod": "nanopb",
-      "projects": 20
+      "projects": 20,
+      "latest_version": "3.30910.0",
+      "last_published": "2024-07-09",
+      "total_versions": 16
     },
     {
       "pod": "Firebase",
-      "projects": 19
+      "projects": 19,
+      "latest_version": "9.6.0",
+      "last_published": "2022-09-13",
+      "total_versions": 264
     },
     {
       "pod": "FirebaseCore",
-      "projects": 19
+      "projects": 19,
+      "latest_version": "9.6.0",
+      "last_published": "2022-09-13",
+      "total_versions": 199
     },
     {
       "pod": "GoogleUtilities",
-      "projects": 18
+      "projects": 18,
+      "latest_version": "8.1.3",
+      "last_published": "2026-08-26",
+      "total_versions": 77
     },
     {
       "pod": "FirebaseAnalytics",
-      "projects": 15
+      "projects": 15,
+      "latest_version": "9.6.0",
+      "last_published": "2022-09-13",
+      "total_versions": 176
     },
     {
       "pod": "GoogleAppMeasurement",
-      "projects": 14
+      "projects": 14,
+      "latest_version": "9.6.0",
+      "last_published": "2022-09-13",
+      "total_versions": 153
     },
     {
       "pod": "GoogleDataTransport",
-      "projects": 14
+      "projects": 14,
+      "latest_version": "9.4.1",
+      "last_published": "2024-03-06",
+      "total_versions": 54
     },
     {
       "pod": "FirebaseCoreDiagnostics",
-      "projects": 13
+      "projects": 13,
+      "latest_version": "9.6.0",
+      "last_published": "2022-09-13",
+      "total_versions": 50
     },
     {
       "pod": "GTMSessionFetcher",
-      "projects": 12
+      "projects": 12,
+      "latest_version": "5.3.1",
+      "last_published": "2026-08-04",
+      "total_versions": 53
     },
     {
       "pod": "PromisesObjC",
-      "projects": 12
+      "projects": 12,
+      "latest_version": "2.4.1",
+      "last_published": "2026-06-09",
+      "total_versions": 32
     },
     {
       "pod": "SnapKit",
-      "projects": 12
+      "projects": 12,
+      "latest_version": "5.7.1",
+      "last_published": "2024-02-18",
+      "total_versions": 29
     },
     {
       "pod": "RxSwift",
-      "projects": 11
+      "projects": 11,
+      "latest_version": "6.9.0",
+      "last_published": "2025-02-17",
+      "total_versions": 83
     },
     {
       "pod": "SwiftLint",
-      "projects": 11
+      "projects": 11,
+      "latest_version": "0.65.1",
+      "last_published": "2026-08-21",
+      "total_versions": 105
     },
     {
       "pod": "Alamofire",
-      "projects": 9
+      "projects": 9,
+      "latest_version": "5.9.1",
+      "last_published": "2024-03-31",
+      "total_versions": 101
     },
     {
       "pod": "FirebaseInstallations",
-      "projects": 9
+      "projects": 9,
+      "latest_version": "9.6.0",
+      "last_published": "2022-09-13",
+      "total_versions": 109
     },
     {
       "pod": "RxCocoa",
-      "projects": 9
+      "projects": 9,
+      "latest_version": "6.9.0",
+      "last_published": "2025-02-17",
+      "total_versions": 81
     },
     {
       "pod": "FirebaseAuthInterop",
-      "projects": 8
+      "projects": 8,
+      "latest_version": "9.6.0",
+      "last_published": "2022-09-13",
+      "total_versions": 74
     },
     {
       "pod": "FirebaseCoreDiagnosticsInterop",
-      "projects": 8
+      "projects": 8,
+      "latest_version": "1.2.0",
+      "last_published": "2020-01-14",
+      "total_versions": 3
     },
     {
       "pod": "FirebaseInstanceID",
-      "projects": 8
+      "projects": 8,
+      "latest_version": "7.9.0",
+      "last_published": "2021-03-23",
+      "total_versions": 64
     },
     {
       "pod": "GoogleDataTransportCCTSupport",
-      "projects": 8
+      "projects": 8,
+      "latest_version": "3.2.0",
+      "last_published": "2020-06-16",
+      "total_versions": 21
     },
     {
       "pod": "Crashlytics",
@@ -257,5 +317,6 @@
     "34": 1,
     "38": 1,
     "69": 1
-  }
+  },
+  "trunk_publish_data_note": "last_published comes from the CocoaPods trunk API on 2026-09-15. A pod still publishing recently loses a live release channel at the freeze; a pod static for years is already frozen in practice. Both are exposed, but only the first is a change in what you can receive."
 }

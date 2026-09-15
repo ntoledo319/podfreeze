@@ -94,10 +94,53 @@ publishing new versions to CocoaPods in <strong>October 2026</strong></a>, two m
 earlier. For roughly a third of these projects, the real deadline is not the one in the
 headlines.</p>
 
-<p>It is worth saying plainly what the Firebase data already shows: <code>FirebaseAuth</code>'s
-most recent publish to trunk was <strong>September 2022</strong>. Firebase effectively left
-CocoaPods years ago. If you are still installing it through CocoaPods, you have been running
-on a frozen version for some time without anything telling you.</p>
+<p>It is worth saying plainly what the Firebase data shows, because it cuts both ways.
+Every <em>Firebase-branded</em> pod in this corpus is frozen at <strong>9.6.0, published
+13 September 2022</strong> — <code>Firebase</code>, <code>FirebaseCore</code>,
+<code>FirebaseAuth</code>, <code>FirebaseAnalytics</code>, <code>FirebaseFirestore</code>,
+<code>FirebaseCrashlytics</code>, <code>FirebaseMessaging</code>,
+<code>FirebaseStorage</code>, <code>FirebaseDatabase</code> and
+<code>FirebaseRemoteConfig</code> all stopped on the same day. (Two deprecated Firebase
+pods stopped even earlier: <code>FirebaseInstanceID</code> in March 2021 and
+<code>FirebaseCoreDiagnosticsInterop</code> in January 2020.) If you install Firebase
+through CocoaPods you have been on a four-year-old version without anything telling you.</p>
+
+<p><strong>But the libraries Firebase pulls in are still actively publishing, and those are
+the ones with something to lose.</strong> <code>GoogleUtilities</code> shipped
+<strong>8.1.3 on 26 August 2026</strong> — three versions in 2026 alone.
+<code>GTMSessionFetcher</code> shipped 5.3.1 in August 2026; <code>PromisesObjC</code>
+shipped 2.4.1 in June 2026. Those are live release channels that the freeze closes
+permanently.</p>
+
+<p>So the exposure is not "an abandoned SDK you should have migrated anyway". It is a
+maintained dependency tree underneath a frozen SDK — and <code>GoogleUtilities</code>,
+which appears in 18 of the 83 projects here, is exactly the kind of low-level library where
+a future security fix would matter.</p>
+
+<h2>Which exposures actually change anything</h2>
+
+<p>Every pod above is exposed, but they are not equally affected. A pod that last published
+in 2022 is already frozen in practice — the December date only formalises it. A pod shipping
+releases this year loses something real. Of the twenty most common exposed pods, six still
+have a live release channel:</p>
+
+<table>
+<tr><th>Pod</th><th>Last published to trunk</th><th class="num">Projects</th></tr>
+<tr><td><code>GoogleUtilities</code></td><td>26 Aug 2026</td><td class="num">18</td></tr>
+<tr><td><code>SwiftLint</code></td><td>21 Aug 2026</td><td class="num">11</td></tr>
+<tr><td><code>GTMSessionFetcher</code></td><td>4 Aug 2026</td><td class="num">12</td></tr>
+<tr><td><code>PromisesObjC</code></td><td>9 Jun 2026</td><td class="num">12</td></tr>
+<tr><td><code>RxSwift</code></td><td>17 Feb 2025</td><td class="num">11</td></tr>
+<tr><td><code>RxCocoa</code></td><td>17 Feb 2025</td><td class="num">9</td></tr>
+</table>
+
+<p>The other fourteen — including every Firebase-branded pod, <code>Alamofire</code>
+(Mar 2024), <code>SnapKit</code> (Feb 2024) and <code>nanopb</code> (Jul 2024) — have been
+static for a year or more already. Migrating those is housekeeping. The six above are where
+a security fix published in 2027 would fail to reach you.</p>
+
+<p>Dates verified against the CocoaPods trunk API on 15 September 2026 and included in the
+<a href="findings.json">raw dataset</a>.</p>
 
 <h2>A quarter of lockfiles cannot answer the question at all</h2>
 
