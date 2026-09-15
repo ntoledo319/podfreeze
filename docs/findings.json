@@ -1,7 +1,7 @@
 {
   "title": "CocoaPods trunk freeze exposure across 83 real public iOS projects",
   "measured_utc": "2026-09-15",
-  "tool": "podfreeze v0.5.1",
+  "tool": "podfreeze v0.5.1 (measured); re-verified unchanged under v0.8.0",
   "source": "https://ntoledo319.github.io/podfreeze/findings.html",
   "licence": "CC0-1.0 \u2014 public domain, no attribution required",
   "method": {
@@ -318,5 +318,11 @@
     "38": 1,
     "69": 1
   },
-  "trunk_publish_data_note": "last_published comes from the CocoaPods trunk API on 2026-09-15. A pod still publishing recently loses a live release channel at the freeze; a pod static for years is already frozen in practice. Both are exposed, but only the first is a change in what you can receive."
+  "trunk_publish_data_note": "last_published comes from the CocoaPods trunk API on 2026-09-15. A pod still publishing recently loses a live release channel at the freeze; a pod static for years is already frozen in practice. Both are exposed, but only the first is a change in what you can receive.",
+  "re_verified": {
+    "version": "v0.8.0",
+    "date": "2026-09-15",
+    "result": "all totals identical to the original measurement",
+    "note": "Releases after v0.5.1 changed how unresolved SwiftPM targets and rate-limited lookups are reported, not how trunk exposure is determined."
+  }
 }
