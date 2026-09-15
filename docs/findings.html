@@ -153,6 +153,17 @@ guessing. Re-running <code>pod install</code> with a current CocoaPods rewrites 
 with source information and makes the question answerable.</p>
 
 <div class="method">
+<strong>Reproduce it yourself.</strong>
+<a href="https://github.com/ntoledo319/podfreeze/blob/main/reproduce_findings.py">reproduce_findings.py</a>
+re-collects a corpus from the GitHub API and re-derives every number here, including an
+independent re-count from the raw lockfiles that does not trust the scanner. A published
+measurement nobody can re-run is an assertion with a table attached. Expect some
+variation: code search results change, and a smaller sample swings more. A materially
+different exposure rate is worth
+<a href="https://github.com/ntoledo319/podfreeze/issues">reporting as an issue</a>.
+</div>
+
+<div class="method">
 <strong>Method.</strong> Lockfiles were collected via the GitHub code search API across five
 different queries (<code>SPEC REPOS</code>, <code>Firebase</code>,
 <code>EXTERNAL SOURCES</code>, <code>React-Core</code>, <code>CHECKOUT OPTIONS</code>) to

@@ -11,7 +11,7 @@ Firebase pods dominate the exposed set — and
 [Firebase stops publishing to CocoaPods in October 2026](https://firebase.google.com/docs/ios/cocoapods-deprecation),
 two months before the trunk freeze.
 **[Full findings and method →](https://ntoledo319.github.io/podfreeze/findings.html)**
-([raw data, CC0](https://ntoledo319.github.io/podfreeze/findings.json))
+([raw data, CC0](https://ntoledo319.github.io/podfreeze/findings.json) · [reproduce it](reproduce_findings.py))
 
 Or run it locally:
 
