@@ -3,6 +3,10 @@
 Find which of your CocoaPods dependencies can never receive another published
 security patch after the trunk freeze.
 
+**[→ Check your Podfile.lock in the browser](https://ntoledo319.github.io/podfreeze/check.html)** — no install, nothing uploaded.
+
+Or run it locally:
+
 ```
 pip install podfreeze
 cd your-ios-project
