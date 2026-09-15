@@ -446,9 +446,16 @@ def test_priority_ranks_actively_published_pods_first(tmp_path, monkeypatch):
     monkeypatch.setattr(audit_mod, "enrich", fake_enrich)
     md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
 
+    # Measure the TABLE, not the prose. The "Start with the N pods still publishing"
+    # callout names the active pods before the table, so searching the whole section
+    # found ActivePod first regardless of how the rows were actually ordered -- the
+    # test passed under a fully reversed ranking.
     body = md.split("## What to deal with first", 1)[1]
-    active_at = body.index("ActivePod")
-    ancient_at = body.index("AncientPod")
+    rows = [l for l in body.splitlines() if l.startswith("| `")]
+    assert rows, "no priority table rows found"
+    order = [l.split("`")[1] for l in rows]
+    active_at = order.index("ActivePod")
+    ancient_at = order.index("AncientPod")
     assert active_at < ancient_at, (
         "the actively-published pod must rank first -- it is the one losing a live "
         "update channel at the freeze"
