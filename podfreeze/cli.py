@@ -14,8 +14,9 @@ from pathlib import Path
 
 from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse
 from .parser import ParseError, parse
+from .pro import render_pro, verify_license
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 SOURCE = "https://blog.cocoapods.org/CocoaPods-Specs-Repo/"
 
@@ -101,6 +102,10 @@ def main(argv: list[str] | None = None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("path", nargs="?", help="Podfile.lock or directory containing one")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument("--pro", action="store_true",
+                    help="migration plan for exposed pods (requires a licence key)")
+    ap.add_argument("--license", dest="license_key", default=None,
+                    help="licence key (or set PODFREEZE_LICENSE)")
     ap.add_argument("--version", action="version", version=f"podfreeze {__version__}")
     args = ap.parse_args(argv)
 
@@ -136,6 +141,10 @@ def main(argv: list[str] | None = None) -> int:
         }, indent=2))
     else:
         print(render(rep, path))
+        if args.pro:
+            print(render_pro(rep, verify_license(args.license_key)))
+        elif rep.exposed:
+            print(render_pro(rep, licensed=False))
     return 0
 
 

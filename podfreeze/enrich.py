@@ -1,0 +1,116 @@
+"""Pro enrichment — verified public data only.
+
+DATA SOURCES, AND WHAT EACH IS PROVEN TO GIVE
+---------------------------------------------
+1. https://trunk.cocoapods.org/api/v1/pods/<name>
+   Returns every published version with its publication date. VERIFIED working.
+   Gives: latest published version + date -> how stale the pod already is.
+
+2. https://raw.githubusercontent.com/<owner>/<repo>/<branch>/Package.swift
+   Presence of Package.swift proves a SwiftPM migration target exists. VERIFIED.
+
+WHAT THIS DELIBERATELY DOES NOT CLAIM
+-------------------------------------
+There is NO vulnerability database for CocoaPods. Verified directly:
+  - OSV.dev  -> {"code":3,"message":"invalid ecosystem"} for ecosystem "CocoaPods"
+  - GitHub   -> 422, "`cocoapods` is not a possible value"
+GitHub's `swift` ecosystem exists but indexes SwiftPM packages (apple/swift-nio etc.),
+not CocoaPods pod names, so joining pod names against it would return near-universal
+"no advisories" -- a broken join indistinguishable from a clean result.
+
+This tool therefore reports NO CVE data and says so plainly. Any product claiming
+per-pod CVE scanning for CocoaPods is either using a private dataset or is wrong.
+"""
+from __future__ import annotations
+
+import json
+import urllib.error
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, asdict
+
+TRUNK_API = "https://trunk.cocoapods.org/api/v1/pods/{name}"
+RAW_PKG = "https://raw.githubusercontent.com/{repo}/{branch}/Package.swift"
+UA = "podfreeze/0.2.0 (+https://github.com/ntoledo319/podfreeze)"
+TIMEOUT = 12
+
+
+@dataclass
+class Enrichment:
+    pod: str
+    latest_version: str | None = None
+    latest_published: str | None = None      # YYYY-MM-DD
+    total_versions: int | None = None
+    swiftpm_repo: str | None = None
+    swiftpm_available: bool | None = None    # None = could not determine
+    error: str | None = None
+
+    def as_dict(self):
+        return asdict(self)
+
+
+def _get(url: str) -> bytes | None:
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            return r.read()
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
+        return None
+
+
+def _head_ok(url: str) -> bool:
+    req = urllib.request.Request(url, headers={"User-Agent": UA}, method="HEAD")
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            return 200 <= r.status < 300
+    except Exception:
+        return False
+
+
+def fetch_trunk(name: str) -> tuple[str | None, str | None, int | None, str | None]:
+    """Return (latest_version, published_date, total_versions, error)."""
+    raw = _get(TRUNK_API.format(name=name))
+    if raw is None:
+        return None, None, None, "trunk API unreachable or pod not found"
+    try:
+        doc = json.loads(raw)
+    except json.JSONDecodeError:
+        return None, None, None, "trunk API returned non-JSON"
+    versions = doc.get("versions") or []
+    if not versions:
+        return None, None, 0, "no published versions"
+    last = versions[-1]
+    date = (last.get("created_at") or "")[:10] or None
+    return last.get("name"), date, len(versions), None
+
+
+def find_swiftpm(name: str, cocoapods_doc: dict | None = None) -> tuple[str | None, bool | None]:
+    """Probe the conventional GitHub location for a Package.swift.
+
+    Returns (repo_slug, available). available is None when it cannot be determined --
+    never guessed. Absence of Package.swift at the conventional path does NOT prove the
+    library has no SwiftPM support, so a negative is reported as 'not found at the
+    conventional path', not as 'no SwiftPM support'.
+    """
+    repo = f"{name}/{name}"
+    for branch in ("master", "main"):
+        if _head_ok(RAW_PKG.format(repo=repo, branch=branch)):
+            return repo, True
+    return repo, None
+
+
+def enrich_one(name: str) -> Enrichment:
+    ver, date, count, err = fetch_trunk(name)
+    e = Enrichment(pod=name, latest_version=ver, latest_published=date,
+                   total_versions=count, error=err)
+    repo, avail = find_swiftpm(name)
+    e.swiftpm_repo = repo
+    e.swiftpm_available = avail
+    return e
+
+
+def enrich(names: list[str], workers: int = 8) -> list[Enrichment]:
+    if not names:
+        return []
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        return list(ex.map(enrich_one, names))

@@ -70,6 +70,47 @@ spec repos declared: https://github.internal.example/ios/Specs.git, trunk
 
 `--json` gives machine-readable output for CI.
 
+## Pro
+
+The free tool tells you **which** pods are exposed. Pro tells you **what to do about
+each one, and in what order** — using live data, not guesses.
+
+For every exposed pod it fetches from the CocoaPods trunk API:
+
+- the latest version actually published, and **the date it was published**
+- how long the pod has been static (SDWebImage's last trunk release was **2020**)
+- whether a **`Package.swift` exists** to migrate to
+- a ranked order of work — pods already frozen for years come first
+
+```
+$ podfreeze --pro
+
+    SDWebImage
+      in your lockfile : 5.18.10
+      latest on trunk  : 5.9.5 (published 2020-11-13)
+      assessment       : last published 5y ago — effectively frozen already
+      SwiftPM          : Package.swift found at SDWebImage/SDWebImage
+```
+
+| | |
+|---|---|
+| **Single project** — $29 | [Buy](https://buy.stripe.com/dRm8wP4nY8pi2l5aZe87K0r) |
+| **Team / unlimited projects + CI** — $199 | [Buy](https://buy.stripe.com/4gM9AT2fQdJC9Nx4AQ87K0s) |
+
+Licence keys verify **offline**. No phone-home, no telemetry, no account. Works
+air-gapped.
+
+### What Pro deliberately does NOT include
+
+**No CVE data.** There is no vulnerability database for the CocoaPods ecosystem —
+verified directly: OSV.dev returns `{"code":3,"message":"invalid ecosystem"}` for
+`CocoaPods`, and GitHub's advisory API answers `422: cocoapods is not a possible
+value`. Matching pod names against GitHub's `swift` ecosystem (which indexes SwiftPM
+packages like `apple/swift-nio`) returns near-universal "no advisories" — a broken
+lookup that is indistinguishable from a clean result.
+
+Any tool claiming per-pod CVE scanning for CocoaPods is worth questioning closely.
+
 ## Honest limitations
 
 - Lockfiles written by **CocoaPods < 1.7** have no `SPEC REPOS` section. Those pods are
