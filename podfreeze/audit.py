@@ -282,10 +282,12 @@ def render_markdown(audit: Audit, root: Path) -> str:
     a("**What \"not found\" means in the SwiftPM column.** It means this tool could not "
       "find a `Package.swift`, **not** that none exists. The CocoaPods trunk API does "
       "not expose a pod's source repository, and the Specs CDN refuses automated "
-      "requests, so the probe can only try the conventional `owner/name` location plus "
-      "a small table of verified monorepos. Widely-used libraries frequently ship "
-      "SwiftPM from a repository this probe cannot guess. **Check the pod's own README "
-      "before concluding there is no migration route.**")
+      "requests, so the probe can only try the conventional `owner/name` location, a "
+      "small table of verified monorepos, and a GitHub search restricted to "
+      "clearly-canonical repositories. That last restriction is deliberate and it has a "
+      "cost: a small but genuine project — measured example, `IPtProxy` at 77 stars — is "
+      "rejected rather than risk naming a stranger's copy as your migration target. "
+      "**Check the pod's own README before concluding there is no migration route.**")
     a("")
     a("**No CVE data is included.** No vulnerability database covers the CocoaPods "
       "ecosystem: OSV.dev rejects `CocoaPods` as an invalid ecosystem and GitHub's "

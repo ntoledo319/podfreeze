@@ -69,6 +69,17 @@ TIMEOUT = 12
 # (KSCrash 4.5k, SnapKit 20k, Alamofire 42k, RxSwift 24k, SwiftLint 19k) clears this by
 # an order of magnitude. Set high deliberately: a wrong migration target is worse than
 # an honest "not found".
+#
+# KNOWN COST, measured: this rejects at least one genuinely canonical project --
+# tladesignz/IPtProxy (77 stars, actively maintained, exact name match) is the real
+# source and is reported as "not found". That is the deliberate trade.
+#
+# A "nothing bigger shares this name" rule was tested as a way to lower the floor safely
+# and REJECTED: the real IQKeyboardManagerSwift lives under a different repository name
+# (hackiftekhar/IQKeyboardManager), so it never appears in a search for the pod name --
+# the 74-star copy looks undisputed and would be accepted. No search-based signal
+# distinguishes "small but canonical" from "small impostor whose original is named
+# differently", so the floor stays, and the report says "not found" rather than guessing.
 CANONICAL_STARS = 500
 _NET_STATE: bool | None = None
 

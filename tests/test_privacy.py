@@ -250,3 +250,29 @@ def test_search_fallback_rejects_a_cross_ecosystem_name_collision(monkeypatch):
     assert ok is True, "the Swift library should still resolve"
     assert slug == "xmartlabs/Eureka", (
         f"picked {slug!r} - a higher-starred project from another ecosystem")
+
+
+def test_star_floor_cost_is_disclosed_not_hidden(tmp_path, monkeypatch):
+    """The floor rejects a real project. The report must say so.
+
+    tladesignz/IPtProxy (77 stars, actively maintained, exact name match) is genuinely
+    canonical and is reported as 'not found'. A buyer who is told only "not found"
+    cannot tell a missing library from a deliberately-rejected small one.
+    """
+    from podfreeze import audit as audit_mod
+    from podfreeze.enrich import Enrichment
+
+    proj = tmp_path / "App"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - SomePod (1.0)\n\nDEPENDENCIES:\n  - SomePod\n\n"
+        "SPEC REPOS:\n  trunk:\n    - SomePod\n\nCOCOAPODS: 1.15.2\n")
+    monkeypatch.setattr(audit_mod, "enrich", lambda names, workers=8: [
+        Enrichment(pod=n, latest_version="1.0", latest_published="2026-01-01",
+                   total_versions=3, swiftpm_available=None) for n in names])
+    md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+
+    assert "restricted to" in md and "canonical" in md, (
+        "the report no longer explains that search results are restricted")
+    assert "IPtProxy" in md and "77 stars" in md, (
+        "the report no longer names the measured cost of that restriction")
