@@ -16,7 +16,7 @@ from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse
 from .parser import ParseError, parse
 from .pro import render_pro, verify_license
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 SOURCE = "https://blog.cocoapods.org/CocoaPods-Specs-Repo/"
 
@@ -104,10 +104,49 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     ap.add_argument("--pro", action="store_true",
                     help="migration plan for exposed pods (requires a licence key)")
+    ap.add_argument("--audit", metavar="DIR",
+                    help="scan every Podfile.lock under DIR and write an organisation "
+                         "migration report (requires a licence key)")
+    ap.add_argument("--out", metavar="FILE", default="podfreeze-audit.md",
+                    help="where to write the audit report (default: podfreeze-audit.md)")
     ap.add_argument("--license", dest="license_key", default=None,
                     help="licence key (or set PODFREEZE_LICENSE)")
     ap.add_argument("--version", action="version", version=f"podfreeze {__version__}")
     args = ap.parse_args(argv)
+
+    # --- Organisation audit (licensed) -------------------------------------
+    if args.audit:
+        from pathlib import Path as _P
+
+        from .audit import render_markdown, run_audit
+
+        if not verify_license(args.license_key):
+            print("podfreeze: --audit requires a licence key.", file=sys.stderr)
+            print("  Set PODFREEZE_LICENSE or pass --license.", file=sys.stderr)
+            print("  https://github.com/ntoledo319/podfreeze#pro", file=sys.stderr)
+            return 4
+        root = _P(args.audit)
+        if not root.is_dir():
+            print(f"podfreeze: not a directory: {root}", file=sys.stderr)
+            return 2
+        audit_result = run_audit(root)
+        n_locks = len(audit_result.projects)
+        if n_locks == 0:
+            print(f"podfreeze: no Podfile.lock found anywhere under {root}",
+                  file=sys.stderr)
+            return 5
+        md = render_markdown(audit_result, root)
+        out = _P(args.out)
+        out.write_text(md, encoding="utf-8")
+        exposed_projects = [p for p in audit_result.ok_projects if p.exposed]
+        print(f"podfreeze audit: scanned {n_locks} Podfile.lock file(s) under {root}")
+        print(f"  {len(exposed_projects)} project(s) with trunk exposure")
+        print(f"  {len(audit_result.pod_usage())} distinct exposed pod(s)")
+        if audit_result.failed_projects:
+            print(f"  {len(audit_result.failed_projects)} file(s) could not be parsed "
+                  f"(listed in the report, not silently skipped)")
+        print(f"  report written to {out}")
+        return 0
 
     path = _find_lockfile(args.path)
     if not path.exists():

@@ -96,6 +96,34 @@ $ podfreeze --pro
 |---|---|
 | **Single project** — $29 | [Buy](https://buy.stripe.com/dRm8wP4nY8pi2l5aZe87K0r) |
 | **Team / unlimited projects + CI** — $199 | [Buy](https://buy.stripe.com/4gM9AT2fQdJC9Nx4AQ87K0s) |
+| **Organisation audit** — $499 | [Buy](https://buy.stripe.com/8x26oHbQqdJCe3Ngjy87K0t) |
+
+### Organisation audit — `--audit`
+
+For a codebase with more than one app. Scans **every** `Podfile.lock` under a directory
+and writes a dated migration report:
+
+```
+$ podfreeze --audit ~/code --out audit.md
+podfreeze audit: scanned 4 Podfile.lock file(s) under /Users/you/code
+  2 project(s) with trunk exposure
+  3 distinct exposed pod(s)
+  report written to audit.md
+```
+
+The report contains a **blast-radius table** — which of your apps each exposed pod
+appears in — ranked by how long the pod has already been static:
+
+| Pod | Last published | Static for | Your projects affected | SwiftPM target |
+|---|---|---|---|---|
+| `SDWebImage` | 5.9.5 (2020-11-13) | 5.8 years | 1 — app-consumer | yes |
+| `Realm` | 5.5.1 (2021-03-18) | 5.5 years | 1 — app-enterprise | not at conventional path |
+| `Alamofire` | 5.9.1 (2024-03-31) | 2.5 years | 1 — app-consumer | yes |
+
+Every figure is derived from your lockfiles and the CocoaPods trunk API. There are no
+invented effort estimates, no severity scores, and no risk theatre. Files that cannot be
+parsed are **listed in the report**, never silently skipped — a skipped file and a clean
+file must not look the same.
 
 Licence keys verify **offline**. No phone-home, no telemetry, no account. Works
 air-gapped.

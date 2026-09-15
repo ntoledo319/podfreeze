@@ -104,3 +104,37 @@ def test_report_states_what_it_examined_not_only_what_it_found():
     rep = analyse(parse(fx.FULLY_INSULATED))
     assert rep.examined == 2          # examined 2 even though 0 are exposed
     assert rep.exposed == []
+
+
+# --- Organisation audit (v0.3.0) ------------------------------------------
+def test_audit_discovers_and_classifies_multiple_projects(tmp_path):
+    """The $499 tier's core claim: scan a whole tree, get per-project truth."""
+    from podfreeze.audit import run_audit
+    (tmp_path / "app-a").mkdir()
+    (tmp_path / "app-b").mkdir()
+    (tmp_path / "app-a" / "Podfile.lock").write_text(fx.MIXED)
+    (tmp_path / "app-b" / "Podfile.lock").write_text(fx.FULLY_INSULATED)
+    a = run_audit(tmp_path)
+    assert len(a.ok_projects) == 2
+    usage = a.pod_usage()
+    assert set(usage) == {"Alamofire", "SDWebImage"}
+    assert usage["Alamofire"] == ["app-a"]
+
+
+def test_audit_skips_vendored_pods_dir(tmp_path):
+    """A Pods/ dir contains a copy; counting it would double-report."""
+    from podfreeze.audit import discover
+    (tmp_path / "Pods").mkdir()
+    (tmp_path / "Pods" / "Podfile.lock").write_text(fx.MIXED)
+    (tmp_path / "Podfile.lock").write_text(fx.MIXED)
+    assert len(discover(tmp_path)) == 1
+
+
+def test_audit_reports_unparseable_files_instead_of_skipping(tmp_path):
+    """A skipped file and a clean file must never look the same."""
+    from podfreeze.audit import run_audit
+    (tmp_path / "broken").mkdir()
+    (tmp_path / "broken" / "Podfile.lock").write_text(fx.NOT_A_LOCKFILE)
+    a = run_audit(tmp_path)
+    assert len(a.failed_projects) == 1
+    assert a.ok_projects == []
