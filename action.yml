@@ -1,5 +1,5 @@
-name: 'podfreeze'
-description: 'Report which CocoaPods dependencies can never receive another published version after the 2 Dec 2026 trunk freeze'
+name: 'CocoaPods Trunk Freeze Check'
+description: 'Fails your CI if any pod resolves from CocoaPods trunk and cannot receive patches after 2 Dec 2026'
 author: 'Toledo Technologies'
 branding:
   icon: 'alert-triangle'
@@ -14,8 +14,12 @@ inputs:
     description: 'Exit non-zero if any pod resolves from trunk'
     required: false
     default: 'false'
+  comment-on-pr:
+    description: 'Post the report as a PR comment (needs pull-requests: write)'
+    required: false
+    default: 'false'
   license:
-    description: 'podfreeze Pro licence key (enables --pro migration plan)'
+    description: 'podfreeze Pro licence key (enables the --pro migration plan)'
     required: false
     default: ''
 
@@ -26,6 +30,9 @@ outputs:
   examined-count:
     description: 'Number of pods examined'
     value: ${{ steps.scan.outputs.examined-count }}
+  report-path:
+    description: 'Path to the JSON report'
+    value: ${{ steps.scan.outputs.report-path }}
 
 runs:
   using: 'composite'
@@ -46,22 +53,47 @@ runs:
         PODFREEZE_LICENSE: ${{ inputs.license }}
       run: |
         set -o pipefail
-        REPORT=$(podfreeze --json "${{ inputs.path }}")
-        echo "$REPORT" > podfreeze-report.json
+        podfreeze --json "${{ inputs.path }}" > podfreeze-report.json
 
-        EXPOSED=$(python3 -c "import json;d=json.load(open('podfreeze-report.json'));print(d['counts'].get('trunk',0))")
-        EXAMINED=$(python3 -c "import json;d=json.load(open('podfreeze-report.json'));print(d['examined'])")
+        EXPOSED=$(python3 -c "import json;print(json.load(open('podfreeze-report.json'))['counts'].get('trunk',0))")
+        EXAMINED=$(python3 -c "import json;print(json.load(open('podfreeze-report.json'))['examined'])")
         echo "exposed-count=$EXPOSED" >> "$GITHUB_OUTPUT"
         echo "examined-count=$EXAMINED" >> "$GITHUB_OUTPUT"
+        echo "report-path=podfreeze-report.json" >> "$GITHUB_OUTPUT"
 
-        # Human-readable run, including the Pro plan when a licence is supplied.
-        if [ -n "${PODFREEZE_LICENSE}" ]; then
-          podfreeze --pro "${{ inputs.path }}" | tee -a "$GITHUB_STEP_SUMMARY"
-        else
-          podfreeze "${{ inputs.path }}" | tee -a "$GITHUB_STEP_SUMMARY"
-        fi
+        {
+          echo "## CocoaPods trunk freeze check"
+          echo ""
+          if [ -n "${PODFREEZE_LICENSE}" ]; then
+            podfreeze --pro "${{ inputs.path }}"
+          else
+            podfreeze "${{ inputs.path }}"
+          fi
+        } > podfreeze-summary.txt
+
+        cat podfreeze-summary.txt
+        {
+          echo '```'
+          cat podfreeze-summary.txt
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
 
         if [ "${{ inputs.fail-on-exposed }}" = "true" ] && [ "$EXPOSED" -gt 0 ]; then
           echo "::error::$EXPOSED pod(s) resolve from CocoaPods trunk and cannot receive published updates after 2026-12-02"
           exit 1
         fi
+
+    - name: Comment on PR
+      if: ${{ inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        {
+          echo '```'
+          cat podfreeze-summary.txt
+          echo '```'
+        } > pf-comment.md
+        gh pr comment "${{ github.event.pull_request.number }}" \
+          --repo "${{ github.repository }}" --body-file pf-comment.md || \
+          echo "::warning::could not post PR comment (needs pull-requests: write permission)"
