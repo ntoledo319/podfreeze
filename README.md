@@ -16,7 +16,7 @@ two months before the trunk freeze.
 Or run it locally:
 
 ```
-pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.7.5"
+pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.0"
 cd your-ios-project
 podfreeze
 ```
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ntoledo319/podfreeze@v0.7.5
+      - uses: ntoledo319/podfreeze@v0.8.0
         with:
           path: Podfile.lock
           fail-on-exposed: 'false'   # 'true' to block the PR on any trunk-resolved pod
@@ -108,15 +108,16 @@ Inputs:
 |---|---|---|
 | `path` | `Podfile.lock` | lockfile, or a directory containing one |
 | `fail-on-exposed` | `false` | exit non-zero if any pod resolves from trunk |
+| `fail-on-undetermined` | `false` | exit non-zero if any pod's source **could not be determined** — a lockfile predating `SPEC REPOS` reports 0 exposed and would otherwise pass silently |
 | `comment-on-pr` | `false` | post the report as a PR comment (needs `pull-requests: write`) |
 | `license` | *(empty)* | Pro licence key — enables the `--pro` migration plan |
 
-Outputs: `exposed-count`, `examined-count`, `report-path`.
+Outputs: `exposed-count`, `examined-count`, `undetermined-count`, `report-path`.
 
 With a Pro key, pass it from a secret to get the prioritised migration plan in CI:
 
 ```yaml
-      - uses: ntoledo319/podfreeze@v0.7.5
+      - uses: ntoledo319/podfreeze@v0.8.0
         with:
           license: ${{ secrets.PODFREEZE_LICENSE }}
 ```

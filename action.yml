@@ -14,6 +14,13 @@ inputs:
     description: 'Exit non-zero if any pod resolves from trunk'
     required: false
     default: 'false'
+  fail-on-undetermined:
+    description: >
+      Exit non-zero if any pod source could NOT be determined (a lockfile written by
+      CocoaPods < 1.7 has no SPEC REPOS section). Without this, such a project passes
+      fail-on-exposed with 0 exposed pods and looks identical to a clean one.
+    required: false
+    default: 'false'
   comment-on-pr:
     description: 'Post the report as a PR comment (needs pull-requests: write)'
     required: false
@@ -30,6 +37,9 @@ outputs:
   examined-count:
     description: 'Number of pods examined'
     value: ${{ steps.scan.outputs.examined-count }}
+  undetermined-count:
+    description: 'Number of pods whose source could not be determined (no SPEC REPOS section)'
+    value: ${{ steps.scan.outputs.undetermined-count }}
   report-path:
     description: 'Path to the JSON report'
     value: ${{ steps.scan.outputs.report-path }}
@@ -45,7 +55,7 @@ runs:
     - name: Install podfreeze
       shell: bash
       # Install the version the consumer actually pinned. Fetching @main here would
-      # silently ignore `uses: ntoledo319/podfreeze@v0.7.5` and run whatever is on
+      # silently ignore `uses: ntoledo319/podfreeze@v0.8.0` and run whatever is on
       # main instead -- a pin that does not pin is worse than no pin.
       run: pip install --quiet "$GITHUB_ACTION_PATH"
 
@@ -81,6 +91,10 @@ runs:
           echo '```'
         } >> "$GITHUB_STEP_SUMMARY"
 
+        if [ "${{ inputs.fail-on-undetermined }}" = "true" ] && [ "$UNKNOWN" -gt 0 ]; then
+          echo "::error::$UNKNOWN pod(s) have an undeterminable source - this lockfile predates SPEC REPOS, so a clean result cannot be proven. Re-run 'pod install' with a modern CocoaPods."
+          exit 1
+        fi
         if [ "${{ inputs.fail-on-exposed }}" = "true" ] && [ "$EXPOSED" -gt 0 ]; then
           echo "::error::$EXPOSED pod(s) resolve from CocoaPods trunk and cannot receive published updates after 2026-12-02"
           exit 1

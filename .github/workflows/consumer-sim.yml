@@ -81,3 +81,44 @@ jobs:
         with:
           path: AppTwo/Podfile.lock
           fail-on-exposed: 'true'
+
+      - name: Create a legacy lockfile with no SPEC REPOS section
+        run: |
+          mkdir -p LegacyApp
+          cat > LegacyApp/Podfile.lock <<'EOF'
+          PODS:
+            - Alamofire (3.0.0)
+            - SDWebImage (3.7.3)
+
+          DEPENDENCIES:
+            - Alamofire
+
+          COCOAPODS: 0.39.0
+          EOF
+
+      - name: A lockfile that cannot be assessed must NOT pass fail-on-exposed silently
+        id: legacy
+        uses: ./
+        with:
+          path: LegacyApp/Podfile.lock
+          fail-on-exposed: 'true'
+
+      - name: Assert it reported 0 exposed but flagged the undetermined pods
+        run: |
+          echo "exposed=${{ steps.legacy.outputs.exposed-count }} undetermined=${{ steps.legacy.outputs.undetermined-count }}"
+          test "${{ steps.legacy.outputs.exposed-count }}" = "0"
+          test "${{ steps.legacy.outputs.undetermined-count }}" = "2"
+
+      - name: fail-on-undetermined must FAIL that same lockfile
+        id: mustfail
+        continue-on-error: true
+        uses: ./
+        with:
+          path: LegacyApp/Podfile.lock
+          fail-on-undetermined: 'true'
+
+      - name: Assert the undetermined gate really failed
+        run: |
+          test "${{ steps.mustfail.outcome }}" = "failure" \
+            && echo "fail-on-undetermined correctly failed an unassessable lockfile" \
+            || (echo "::error::an unassessable lockfile passed the gate"; exit 1)
