@@ -204,6 +204,17 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         lock = parse(path.read_text(encoding="utf-8", errors="replace"))
+    except IsADirectoryError:
+        # A directory named Podfile.lock. Rare, but a traceback in someone's CI log
+        # reads as a bug in THEIR pipeline, not as an unusable input.
+        print(f"podfreeze: {path} is a directory, not a lockfile", file=sys.stderr)
+        return 2
+    except PermissionError:
+        print(f"podfreeze: cannot read {path}: permission denied", file=sys.stderr)
+        return 2
+    except OSError as e:
+        print(f"podfreeze: cannot read {path}: {e.strerror or e}", file=sys.stderr)
+        return 2
     except ParseError as e:
         # Loud failure. Never report "clean" because parsing failed.
         print(f"podfreeze: could not parse {path}: {e}", file=sys.stderr)

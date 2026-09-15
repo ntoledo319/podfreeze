@@ -542,3 +542,55 @@ def test_partial_enrichment_still_ranks(tmp_path, monkeypatch):
     assert "Ranked by **what you actually lose**" in md, (
         "a partially-successful run should still rank what it knows")
     assert "Not ranked" not in md
+
+
+def test_directory_named_podfile_lock_does_not_traceback(tmp_path, capsys):
+    """A traceback in someone's CI log reads as a bug in THEIR pipeline.
+
+    A directory named Podfile.lock is rare but real (a stray mkdir, a bad volume mount).
+    It produced a raw IsADirectoryError stack trace.
+    """
+    from podfreeze.cli import main
+    (tmp_path / "Podfile.lock").mkdir()
+    rc = main([str(tmp_path)])
+    err = capsys.readouterr().err
+    assert rc == 2, f"expected exit 2, got {rc}"
+    assert "is a directory, not a lockfile" in err
+    assert "Traceback" not in err
+
+
+def test_unreadable_lockfile_does_not_traceback(tmp_path, capsys):
+    """Permission denied is an environment problem, reported as one."""
+    import os
+    import stat
+    from podfreeze.cli import main
+
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text("PODS:\n  - X (1.0)\n\nCOCOAPODS: 1.15.2\n")
+    os.chmod(lock, 0o000)
+    try:
+        if os.access(lock, os.R_OK):          # running as root: chmod is not enforced
+            import pytest
+            pytest.skip("cannot make a file unreadable as this user")
+        rc = main([str(lock)])
+        err = capsys.readouterr().err
+        assert rc == 2, f"expected exit 2, got {rc}"
+        assert "permission denied" in err.lower()
+        assert "Traceback" not in err
+    finally:
+        os.chmod(lock, stat.S_IRUSR | stat.S_IWUSR)
+
+
+def test_symlinked_lockfile_is_followed(tmp_path, capsys):
+    """A symlinked Podfile.lock is normal in monorepos and must just work."""
+    import os
+    from podfreeze.cli import main
+
+    real = tmp_path / "real.lock"
+    real.write_text("PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+                    "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
+    proj = tmp_path / "App"
+    proj.mkdir()
+    os.symlink(real, proj / "Podfile.lock")
+    assert main([str(proj)]) == 0
+    assert "Alamofire" in capsys.readouterr().out
