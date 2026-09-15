@@ -248,3 +248,18 @@ def test_network_failure_is_not_reported_as_a_finding(monkeypatch):
     _, _, _, err = en.fetch_trunk("Alamofire")
     assert "NETWORK UNAVAILABLE" in err
     assert "not found" not in err.lower()
+
+
+def test_truncated_file_is_an_error_not_a_legacy_lockfile():
+    """A cut-short paste must NOT be reported as 'legacy, sources unknown'.
+
+    Found by driving the real browser UI: pasting a truncated lockfile produced a
+    clean-looking Result claiming 'your build does not break'. Both the Python and JS
+    parsers agreed - and both were wrong the same way, which is exactly what a
+    cross-implementation check cannot catch.
+    """
+    with pytest.raises(ParseError, match="truncated"):
+        parse("PODS:\n  - Alam")
+    # A genuine legacy lockfile (no SPEC REPOS but complete) must still parse.
+    rep = analyse(parse(fx.LEGACY_NO_SPEC_REPOS))
+    assert rep.examined == 2

@@ -116,6 +116,16 @@ function parseLock(text){
     }
   }
   if(!sawPods) throw new Error('no PODS section found — is this really a Podfile.lock?');
+  // A complete Podfile.lock always ends with a COCOAPODS version trailer. PODS with no
+  // DEPENDENCIES and no trailer means the paste was cut short — reporting that as a
+  // "legacy lockfile, sources unknown" states something false about a file we never
+  // fully read.
+  const hasTrailer = /^(COCOAPODS|SPEC CHECKSUMS|PODFILE CHECKSUM):/m.test(text);
+  const gotFar = /^(DEPENDENCIES|SPEC REPOS|EXTERNAL SOURCES):/m.test(text);
+  if(!hasTrailer && !gotFar)
+    throw new Error('file looks truncated: a PODS section with no DEPENDENCIES, SPEC REPOS or ' +
+      'COCOAPODS trailer. A complete Podfile.lock ends with a ' +
+      'COCOAPODS version line — check the paste is complete.');
   return {pods, specRepos, external, sawSpecRepos};
 }
 

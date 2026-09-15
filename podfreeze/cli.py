@@ -16,7 +16,7 @@ from .analyse import FREEZE_DATE, TEST_RUN, Report, analyse
 from .parser import ParseError, parse
 from .pro import render_pro, verify_license
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 SOURCE = "https://blog.cocoapods.org/CocoaPods-Specs-Repo/"
 

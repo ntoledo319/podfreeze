@@ -121,6 +121,19 @@ def parse(text: str) -> Lockfile:
     if "PODS" not in doc and "DEPENDENCIES" not in doc:
         raise ParseError("no PODS or DEPENDENCIES section -- not a Podfile.lock")
 
+    # A real Podfile.lock always carries a COCOAPODS version trailer. A file with PODS
+    # but no trailer, no DEPENDENCIES and no SPEC REPOS was cut short -- and reporting
+    # that as "legacy lockfile, sources unknown" states something false about a file
+    # that was never fully read. A file reaching SPEC REPOS or DEPENDENCIES got far
+    # enough to be analysed honestly, so those are accepted.
+    has_trailer = any(k in doc for k in ("COCOAPODS", "SPEC CHECKSUMS", "PODFILE CHECKSUM"))
+    got_far_enough = "DEPENDENCIES" in doc or "SPEC REPOS" in doc or "EXTERNAL SOURCES" in doc
+    if "PODS" in doc and not has_trailer and not got_far_enough:
+        raise ParseError(
+            "file looks truncated: a PODS section with no DEPENDENCIES, SPEC REPOS or "
+            "COCOAPODS trailer. A complete Podfile.lock ends with a COCOAPODS version "
+            "line -- check the paste is complete")
+
     lock = Lockfile()
     lock.cocoapods_version = str(doc["COCOAPODS"]) if doc.get("COCOAPODS") else None
 
