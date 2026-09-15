@@ -8,7 +8,7 @@ security patch after the trunk freeze.
 Or run it locally:
 
 ```
-pip install podfreeze
+pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.4.1"
 cd your-ios-project
 podfreeze
 ```
