@@ -231,7 +231,10 @@ def render_markdown(audit: Audit, root: Path) -> str:
         else:
             static = "unknown"
             pub = (e.error if e and e.error else "lookup failed")
-        swift = "yes" if (e and e.swiftpm_available) else "not at conventional path"
+        # "not found" states what the probe did; "not at conventional path" reads like a
+        # property of the pod. With 78% of rows carrying this value, the wording decides
+        # whether a buyer thinks 63 libraries have no migration route.
+        swift = "yes" if (e and e.swiftpm_available) else "not found — see note"
         projects = usage[pod]
         shown = ", ".join(projects[:3]) + (f" +{len(projects)-3}" if len(projects) > 3 else "")
         a(f"| `{pod}` | {pub} | {static} | {len(projects)} — {shown} | {swift} |")
@@ -272,6 +275,17 @@ def render_markdown(audit: Audit, root: Path) -> str:
       "resolving from a private spec repo, or pinned to a git or path source, are "
       "reported as insulated rather than flagged. Publication dates come from the "
       "CocoaPods trunk API. SwiftPM availability is a probe for a real `Package.swift`.")
+    a("")
+    # 78% of rows in a real 12-project audit say "not at conventional path". Without
+    # this paragraph a buyer reads that as "no SwiftPM migration route exists", which
+    # is a far stronger claim than the probe can support.
+    a("**What \"not found\" means in the SwiftPM column.** It means this tool could not "
+      "find a `Package.swift`, **not** that none exists. The CocoaPods trunk API does "
+      "not expose a pod's source repository, and the Specs CDN refuses automated "
+      "requests, so the probe can only try the conventional `owner/name` location plus "
+      "a small table of verified monorepos. Widely-used libraries frequently ship "
+      "SwiftPM from a repository this probe cannot guess. **Check the pod's own README "
+      "before concluding there is no migration route.**")
     a("")
     a("**No CVE data is included.** No vulnerability database covers the CocoaPods "
       "ecosystem: OSV.dev rejects `CocoaPods` as an invalid ecosystem and GitHub's "

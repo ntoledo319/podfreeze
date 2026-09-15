@@ -365,3 +365,32 @@ def test_clean_lockfile_does_not_get_the_cve_disclaimer(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "reports NO vulnerability data" not in out, (
         "clean projects should not receive the CVE disclaimer")
+
+
+def test_swiftpm_unknown_is_not_stated_as_absent(tmp_path, monkeypatch):
+    """78% of rows in a real audit could not resolve a Package.swift.
+
+    Phrasing that as a property of the pod ("not at conventional path") invites the
+    reader to conclude no SwiftPM migration route exists. The probe cannot support that
+    claim: the trunk API exposes no source repository and the Specs CDN refuses
+    automated requests, so it can only guess owner/name plus a small verified table.
+    """
+    from podfreeze import audit as audit_mod
+    from podfreeze.enrich import Enrichment
+
+    proj = tmp_path / "App"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - ObscurePod (1.0)\n\nDEPENDENCIES:\n  - ObscurePod\n\n"
+        "SPEC REPOS:\n  trunk:\n    - ObscurePod\n\nCOCOAPODS: 1.15.2\n")
+
+    monkeypatch.setattr(audit_mod, "enrich", lambda names, workers=8: [
+        Enrichment(pod=n, latest_version="1.0", latest_published="2026-01-01",
+                   total_versions=3, swiftpm_available=None) for n in names])
+    md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+
+    assert "not found — see note" in md, "the column no longer points at its caveat"
+    assert "could not find a" in md and "not** that none exists" in md, (
+        "the report no longer explains that an unresolved probe is not proof of absence")
+    assert "Check the pod's own README" in md, (
+        "the report no longer tells the reader how to settle it themselves")
