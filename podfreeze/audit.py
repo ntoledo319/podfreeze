@@ -169,17 +169,31 @@ def render_markdown(audit: Audit, root: Path) -> str:
     # --- Priority order, evidence-based ---
     a("## What to deal with first")
     a("")
-    a("Ranked by how long the pod has already been static — a pod that has not "
-      "published in years is effectively frozen already, and the December date only "
-      "makes that permanent. Blast radius is the number of your projects affected.")
+    a("Ranked by **what you actually lose** at the freeze. A pod still publishing "
+      "regularly has a live update channel — including security fixes — that the freeze "
+      "takes away, so it is the real exposure. A pod that has not published in years is "
+      "already frozen in practice; the December date only formalises it, and migrating "
+      "it is housekeeping rather than risk. Blast radius is the number of your projects "
+      "affected.")
     a("")
     a("| Pod | Last published | Static for | Your projects affected | SwiftPM target |")
     a("|---|---|---|---|---|")
 
     def sort_key(pod: str):
+        """Most-recently-published first: those lose a live channel at the freeze.
+
+        Sorting stalest-first was backwards. A pod last published in 2019 loses
+        nothing on 2 December -- nobody was shipping fixes for it anyway. A pod that
+        published last month loses a channel its maintainers are actively using.
+        Vendor-cutoff pods rank above everything: their deadline is earlier.
+        """
         e = audit.enrichment.get(pod)
         yrs = _age_years(e.latest_published) if e else None
-        return (-(yrs or 0), -len(usage.get(pod, [])))
+        has_cutoff = vendor_cutoff(pod) is not None
+        # unknown age sorts last: never rank a pod on data we do not have
+        unknown = yrs is None
+        return (not has_cutoff, unknown, yrs if yrs is not None else 1e9,
+                -len(usage.get(pod, [])))
 
     for pod in sorted(usage, key=sort_key):
         e = audit.enrichment.get(pod)

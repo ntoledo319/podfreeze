@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install exactly what the storefront advertises
-        run: pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.4.2"
+        run: pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.5.0"
 
       - name: Version must match the tag
         run: |

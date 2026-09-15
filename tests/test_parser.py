@@ -410,3 +410,44 @@ def test_malformed_entry_refuses_rather_than_guesses(tmp_path):
         "COCOAPODS: 1.15.2\n"
     )
     assert main([str(lock)]) == 3, "unparseable input must exit non-zero, not report clean"
+
+
+def test_priority_ranks_actively_published_pods_first(tmp_path, monkeypatch):
+    """A pod still publishing loses a live channel; a dead pod loses nothing.
+
+    Ranking stalest-first told buyers to migrate abandoned libraries before the ones
+    actually shipping security fixes -- backwards advice in the section titled
+    'What to deal with first'.
+    """
+    from podfreeze import audit as audit_mod
+    from podfreeze.enrich import Enrichment
+
+    proj = tmp_path / "App"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - AncientPod (1.0)\n  - ActivePod (9.0)\n\n"
+        "DEPENDENCIES:\n  - AncientPod\n  - ActivePod\n\n"
+        "SPEC REPOS:\n  trunk:\n    - AncientPod\n    - ActivePod\n\nCOCOAPODS: 1.15.2\n"
+    )
+
+    def fake_enrich(names, workers=8):
+        out = []
+        for n in names:
+            if n == "AncientPod":
+                out.append(Enrichment(pod=n, latest_version="1.0",
+                                      latest_published="2017-01-01", total_versions=3))
+            else:
+                out.append(Enrichment(pod=n, latest_version="9.0",
+                                      latest_published="2026-05-05", total_versions=40))
+        return out
+
+    monkeypatch.setattr(audit_mod, "enrich", fake_enrich)
+    md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+
+    body = md.split("## What to deal with first", 1)[1]
+    active_at = body.index("ActivePod")
+    ancient_at = body.index("AncientPod")
+    assert active_at < ancient_at, (
+        "the actively-published pod must rank first -- it is the one losing a live "
+        "update channel at the freeze"
+    )
