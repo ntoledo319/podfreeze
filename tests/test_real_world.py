@@ -242,3 +242,46 @@ def test_no_unlicensed_fixture_reintroduced():
     assert not (FIXTURES / "beardedspice_beardedspice.lock").exists(), (
         "a fixture from an unlicensed repository was reintroduced"
     )
+
+
+def test_audit_triages_instead_of_dumping_a_wall(tmp_path, monkeypatch):
+    """A ranked list of 81 pods is a wall, not a plan.
+
+    On a real 12-project tree the audit lists 81 exposed pods, 54% of them static for
+    3+ years. Ranking them correctly is not enough -- the report must say how many
+    actually change anything and name where to start.
+    """
+    from podfreeze import audit as audit_mod
+    from podfreeze.enrich import Enrichment
+
+    for i, (pod, pub) in enumerate([
+        ("LivePod", "2026-08-01"), ("AlsoLive", "2026-05-01"),
+        ("AgingPod", "2024-06-01"), ("FrozenPod", "2018-01-01"),
+        ("AlsoFrozen", "2015-01-01"),
+    ]):
+        proj = tmp_path / f"App{i}"
+        proj.mkdir()
+        (proj / "Podfile.lock").write_text(
+            f"PODS:\n  - {pod} (1.0)\n\nDEPENDENCIES:\n  - {pod}\n\n"
+            f"SPEC REPOS:\n  trunk:\n    - {pod}\n\nCOCOAPODS: 1.15.2\n")
+
+    dates = {"LivePod": "2026-08-01", "AlsoLive": "2026-05-01",
+             "AgingPod": "2024-06-01", "FrozenPod": "2018-01-01",
+             "AlsoFrozen": "2015-01-01"}
+
+    def fake_enrich(names, workers=8):
+        return [Enrichment(pod=n, latest_version="1.0",
+                           latest_published=dates.get(n), total_versions=3)
+                for n in names]
+
+    monkeypatch.setattr(audit_mod, "enrich", fake_enrich)
+    md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+
+    assert "still publishing (lose a live channel)" in md, (
+        "summary no longer triages exposed pods by whether they still publish")
+    assert "already frozen in practice" in md
+    assert "Start with the 2 pod(s) still publishing" in md, (
+        "report no longer names where to start")
+    # the starting pods must be the live ones, not the ancient ones
+    start = md.split("Start with the", 1)[1][:200]
+    assert "LivePod" in start and "FrozenPod" not in start

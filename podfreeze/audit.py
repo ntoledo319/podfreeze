@@ -137,6 +137,22 @@ def render_markdown(audit: Audit, root: Path) -> str:
     a(f"| Projects scanned | {len(ok)} |")
     a(f"| Projects with trunk exposure | {len(exposed_projects)} |")
     a(f"| Distinct exposed pods | {len(usage)} |")
+
+    # Triage, not just a count. On a real 12-project tree this report lists 81 exposed
+    # pods, 54% of which have been static for 3+ years -- housekeeping, not risk. A buyer
+    # reading 81 undifferentiated rows has a wall, not a plan. Say how many actually
+    # change anything, and name the first one.
+    live_pods, aging, frozen = [], [], []
+    for pod in usage:
+        e = audit.enrichment.get(pod)
+        yrs = _age_years(e.latest_published) if e else None
+        if yrs is None:
+            continue
+        (live_pods if yrs <= 1 else aging if yrs <= 3 else frozen).append((pod, yrs))
+    if live_pods or aging or frozen:
+        a(f"| — still publishing (lose a live channel) | **{len(live_pods)}** |")
+        a(f"| — static 1–3 years | {len(aging)} |")
+        a(f"| — static 3+ years (already frozen in practice) | {len(frozen)} |")
     if audit.failed_projects:
         a(f"| Projects that could not be parsed | {len(audit.failed_projects)} |")
     a("")
@@ -176,6 +192,17 @@ def render_markdown(audit: Audit, root: Path) -> str:
       "it is housekeeping rather than risk. Blast radius is the number of your projects "
       "affected.")
     a("")
+    # Name the starting point. A ranked list is only a plan if it says where to stop.
+    if live_pods:
+        names = ", ".join(f"`{p}`" for p, _ in sorted(live_pods, key=lambda x: x[1])[:5])
+        more = f" (and {len(live_pods) - 5} more)" if len(live_pods) > 5 else ""
+        a(f"**Start with the {len(live_pods)} pod(s) still publishing:** {names}{more}. "
+          f"Those are the ones whose maintainers are actively shipping — including, "
+          f"potentially, a security fix that would no longer reach you. The remaining "
+          f"{len(aging) + len(frozen)} have been static for over a year and can be "
+          f"migrated on an ordinary schedule.")
+        a("")
+
     a("| Pod | Last published | Static for | Your projects affected | SwiftPM target |")
     a("|---|---|---|---|---|")
 
