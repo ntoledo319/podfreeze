@@ -1,0 +1,23 @@
+{
+  "HeathWang_HWPanModal.lock": {
+    "examined": 4,
+    "exposed": 3
+  },
+  "ThasianX_SpotifyRadar.lock": {
+    "examined": 8,
+    "exposed": 8
+  },
+  "beardedspice_beardedspice.lock": {
+    "examined": 5,
+    "exposed": 5
+  },
+  "flexlayout.lock": {
+    "examined": 4,
+    "exposed": 3
+  },
+  "zpz1237_NirZhihuDaily2.0.lock": {
+    "examined": 3,
+    "exposed": 0,
+    "unknown": 2
+  }
+}
