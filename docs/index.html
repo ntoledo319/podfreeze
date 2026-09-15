@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>podfreeze — which CocoaPods dependencies stop receiving patches on 2 Dec 2026</title>
+<meta name="description" content="CocoaPods trunk goes read-only on 2 December 2026. podfreeze reads your Podfile.lock and reports which pods can never receive another published version — including a security fix. Free CLI, open source.">
+<link rel="canonical" href="https://ntoledo319.github.io/podfreeze/">
+<meta property="og:title" content="podfreeze — CocoaPods trunk freeze exposure scanner">
+<meta property="og:description" content="Your build won't break. But after 2 Dec 2026 your pods can never publish another security fix. Find out which ones.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ntoledo319.github.io/podfreeze/">
+<style>
+  :root{--bg:#0d1117;--fg:#e6edf3;--mut:#8b949e;--acc:#f0883e;--line:#30363d;--card:#161b22}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:48px 20px 80px}
+  h1{font-size:2.1rem;margin:0 0 .3em;letter-spacing:-.02em}
+  h2{font-size:1.25rem;margin:2.4em 0 .6em;border-bottom:1px solid var(--line);padding-bottom:.3em}
+  .sub{color:var(--mut);font-size:1.1rem;margin:0 0 2em}
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:var(--card);border:1px solid var(--line);border-radius:6px;
+      padding:14px 16px;overflow-x:auto;font-size:.88rem}
+  code{background:var(--card);padding:.15em .4em;border-radius:4px;font-size:.9em}
+  pre code{background:none;padding:0}
+  .date{color:var(--acc);font-weight:600}
+  table{border-collapse:collapse;width:100%;font-size:.9rem;margin:1em 0}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+  th{background:var(--card)}
+  .btn{display:inline-block;background:var(--acc);color:#0d1117;font-weight:600;
+       padding:11px 20px;border-radius:6px;text-decoration:none;margin:6px 8px 6px 0}
+  .btn.alt{background:transparent;color:var(--fg);border:1px solid var(--line)}
+  .note{background:var(--card);border-left:3px solid var(--acc);padding:12px 16px;
+        border-radius:0 6px 6px 0;margin:1.4em 0}
+  a{color:#58a6ff}
+  footer{margin-top:3.5em;padding-top:1.4em;border-top:1px solid var(--line);
+         color:var(--mut);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>podfreeze</h1>
+<p class="sub">Find out which of your CocoaPods dependencies can never receive another
+security patch after <span class="date">2 December 2026</span>.</p>
+
+<pre><code>pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@main"
+cd your-ios-project
+podfreeze</code></pre>
+
+<p>No signup. No account. Nothing leaves your machine. Open source, MIT.</p>
+
+<a class="btn" href="https://github.com/ntoledo319/podfreeze">View on GitHub</a>
+<a class="btn alt" href="#pro">Pro &amp; team licences</a>
+
+<h2>Your build does not break</h2>
+
+<p>That is the first thing this tool tells you, because it is true and most coverage of
+this gets it wrong. After the freeze, existing versions keep resolving from the Specs
+repo on GitHub and the jsDelivr CDN. A Podfile that resolves today resolves identically
+afterwards.</p>
+
+<div class="note">
+What actually changes is narrower, and it is a supply-chain question rather than a build
+question: a pod with a newly discovered vulnerability <strong>has no canonical version to
+carry the fix</strong>. Every consumer is left pinning a git fork by hand.
+</div>
+
+<p>So the question worth answering before December is: <em>which of my pods are pinned to
+coordinates that can never be patched?</em></p>
+
+<h2>What it checks</h2>
+
+<p>podfreeze reads the <code>SPEC REPOS:</code> section of your lockfile — the field that
+records where each pod actually resolved from — and separates:</p>
+
+<table>
+<tr><th>Source</th><th>Status</th></tr>
+<tr><td><code>trunk</code></td><td><strong>Affected.</strong> No future published version can reach this coordinate.</td></tr>
+<tr><td>Private spec repo</td><td>Insulated — you control the index.</td></tr>
+<tr><td>git / path / podspec pin</td><td>Insulated — bypasses trunk entirely.</td></tr>
+</table>
+
+<p>That distinction is the whole point. The CocoaPods announcement states the freeze
+<em>"shouldn't affect people who use CocoaPods with their own specs repos, or have all of
+their dependencies vendored"</em> — so a scanner that ignores <code>SPEC REPOS</code>
+raises false alarms against exactly the teams who already did the right thing.</p>
+
+<h2 id="pro">Pro</h2>
+
+<p>The free tool tells you <strong>which</strong> pods are exposed. Pro tells you
+<strong>what to do about each one, and in what order</strong>, using live data from the
+CocoaPods trunk API — the real last-published date for every pod, how long it has been
+static, and whether a <code>Package.swift</code> exists to migrate to.</p>
+
+<table>
+<tr><th>Pod</th><th>Last published</th><th>Static for</th><th>SwiftPM target</th></tr>
+<tr><td><code>SDWebImage</code></td><td>5.9.5 (2020-11-13)</td><td>5.8 years</td><td>yes</td></tr>
+<tr><td><code>Realm</code></td><td>5.5.1 (2021-03-18)</td><td>5.5 years</td><td>not at conventional path</td></tr>
+<tr><td><code>Alamofire</code></td><td>5.9.1 (2024-03-31)</td><td>2.5 years</td><td>yes</td></tr>
+</table>
+
+<p>Those are real figures from the trunk API, not examples.</p>
+
+<a class="btn" href="https://buy.stripe.com/dRm8wP4nY8pi2l5aZe87K0r">Single project — $29</a>
+<a class="btn" href="https://buy.stripe.com/4gM9AT2fQdJC9Nx4AQ87K0s">Team — $199</a>
+<a class="btn" href="https://buy.stripe.com/8x26oHbQqdJCe3Ngjy87K0t">Organisation audit — $499</a>
+
+<p>The organisation audit scans <em>every</em> <code>Podfile.lock</code> across your
+codebase and writes a dated migration report with a blast-radius table: which of your
+apps each dying pod appears in, ranked by how long it has already been static.</p>
+
+<p>Licence keys verify <strong>offline</strong>. No phone-home, no telemetry, no account.
+Works air-gapped.</p>
+
+<h2>What Pro deliberately does not include</h2>
+
+<p><strong>No CVE data.</strong> There is no vulnerability database covering the CocoaPods
+ecosystem. Verified directly: OSV.dev returns
+<code>{"code":3,"message":"invalid ecosystem"}</code> for <code>CocoaPods</code>, and
+GitHub's advisory API answers <code>422: cocoapods is not a possible value</code>.
+Matching pod names against GitHub's <code>swift</code> ecosystem — which indexes SwiftPM
+packages like <code>apple/swift-nio</code> — returns near-universal "no advisories", a
+broken lookup indistinguishable from a clean result.</p>
+
+<p>Any tool claiming per-pod CVE scanning for CocoaPods is worth questioning closely.</p>
+
+<h2>Honest limitations</h2>
+
+<ul>
+<li>Lockfiles written by CocoaPods &lt; 1.7 have no <code>SPEC REPOS</code> section. Those
+pods are reported as <code>unknown</code>, <strong>not</strong> guessed as exposed.</li>
+<li>A parse failure exits non-zero with an error. It never prints a clean report, because
+"found nothing" and "couldn't read the file" must not look identical.</li>
+<li>It reports exposure. It does not migrate anything for you.</li>
+</ul>
+
+<footer>
+Source: <a href="https://blog.cocoapods.org/CocoaPods-Specs-Repo/">CocoaPods Trunk
+Read-only Plan</a> — the maintainer's own announcement. Read-only test run 1–7 November
+2026; permanent freeze 2 December 2026.<br><br>
+podfreeze is MIT licensed. Built by Toledo Technologies LLC.
+</footer>
+
+</div>
+</body>
+</html>
