@@ -449,3 +449,37 @@ def test_rate_limit_counter_increments_only_on_throttling(monkeypatch):
         got = en.SEARCH_BLOCKED["count"] > 0
         assert got is should_count, f"HTTP {code}: counted={got}, expected {should_count}"
     en.SEARCH_BLOCKED["count"] = 0
+
+
+def test_head_probe_distinguishes_absence_from_inability(monkeypatch):
+    """A 404 is a fact about the pod. A timeout is a fact about the network.
+
+    _head_ok decides every 'SwiftPM: yes / not found' verdict. Returning False for an
+    unreachable network turns "I could not look" into "there is no Package.swift" --
+    on every row at once, which is exactly the silent-failure shape this tool exists to
+    expose in other people's dependency trees.
+    """
+    import io
+    import urllib.error
+    from podfreeze import enrich as en
+
+    cases = [
+        (urllib.error.HTTPError("u", 404, "nf", {}, io.BytesIO(b"")), False),
+        (urllib.error.HTTPError("u", 410, "gone", {}, io.BytesIO(b"")), False),
+        (urllib.error.HTTPError("u", 403, "rl", {}, io.BytesIO(b"")), True),
+        (urllib.error.HTTPError("u", 429, "rl", {}, io.BytesIO(b"")), True),
+        (urllib.error.HTTPError("u", 500, "err", {}, io.BytesIO(b"")), True),
+        (OSError("Network is unreachable"), True),
+        (TimeoutError("timed out"), True),
+    ]
+    for exc, should_disclose in cases:
+        en.SEARCH_BLOCKED["count"] = 0
+        monkeypatch.setattr(
+            en.urllib.request, "urlopen",
+            lambda *a, _e=exc, **k: (_ for _ in ()).throw(_e))
+        assert en._head_ok("https://example.invalid/Package.swift") is False
+        disclosed = en.SEARCH_BLOCKED["count"] > 0
+        assert disclosed is should_disclose, (
+            f"{type(exc).__name__} {getattr(exc, 'code', '')}: disclosed={disclosed}, "
+            f"expected {should_disclose}")
+    en.SEARCH_BLOCKED["count"] = 0

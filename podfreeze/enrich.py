@@ -81,6 +81,10 @@ TIMEOUT = 12
 # distinguishes "small but canonical" from "small impostor whose original is named
 # differently", so the floor stays, and the report says "not found" rather than guessing.
 CANONICAL_STARS = 500
+# Counts lookups that failed for reasons that say nothing about the pod -- rate limits,
+# transport errors, 5xx. Defined here, above first use, because a counter that lives
+# below the function that increments it is a refactor away from a NameError.
+SEARCH_BLOCKED = {"count": 0}
 _NET_STATE: bool | None = None
 
 
@@ -108,11 +112,26 @@ def _get(url: str) -> bytes | None:
 
 
 def _head_ok(url: str) -> bool:
+    """True when the URL really serves content; False when it verifiably does not.
+
+    A transport failure is NOT a negative result. Returning False for an unreachable
+    network turns "I could not look" into "there is no Package.swift", which is the
+    silent-failure shape this whole tool argues against. Non-verdict failures are
+    counted in SEARCH_BLOCKED so the report can disclose a degraded run.
+    """
     req = urllib.request.Request(url, headers={"User-Agent": UA}, method="HEAD")
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
             return 200 <= r.status < 300
-    except Exception:
+    except urllib.error.HTTPError as e:
+        # 404/410 are genuine verdicts: the file is not there.
+        if e.code in (404, 410):
+            return False
+        # 403/429 and 5xx say nothing about the pod.
+        SEARCH_BLOCKED["count"] += 1
+        return False
+    except Exception:  # noqa: BLE001 - transport failure, not a finding
+        SEARCH_BLOCKED["count"] += 1
         return False
 
 
@@ -189,9 +208,6 @@ def find_swiftpm(name: str, cocoapods_doc: dict | None = None) -> tuple[str | No
         return slug, True
 
     return repo, None
-
-
-SEARCH_BLOCKED = {"count": 0}
 
 
 def _search_swiftpm(pod: str) -> tuple[str | None, bool]:
