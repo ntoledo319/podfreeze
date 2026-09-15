@@ -1,0 +1,73 @@
+name: install-matrix
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  # Installs the PUBLISHED package the way a real user does, on every supported
+  # Python. The unit matrix tests the source tree; this tests the artifact people
+  # actually get from the advertised command.
+  install-from-tag:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install exactly what the storefront advertises
+        run: pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.4.2"
+
+      - name: Version must match the tag
+        run: |
+          V=$(podfreeze --version)
+          echo "$V"
+          test "$V" = "podfreeze 0.4.2"
+
+      - name: Real scan must classify correctly
+        run: |
+          cat > Podfile.lock <<'EOF'
+          PODS:
+            - Alamofire (5.8.1)
+            - React-Core (0.72.6):
+              - glog
+            - FirebaseAuth (10.18.0):
+              - FirebaseCore (~> 10.0)
+
+          DEPENDENCIES:
+            - React-Core (from `../node_modules/react-native/`)
+            - FirebaseAuth
+            - Alamofire
+
+          SPEC REPOS:
+            trunk:
+              - Alamofire
+              - FirebaseAuth
+
+          EXTERNAL SOURCES:
+            React-Core:
+              :path: "../node_modules/react-native/"
+
+          COCOAPODS: 1.15.2
+          EOF
+          podfreeze Podfile.lock | tee out.txt
+          grep -q "FirebaseAuth" out.txt
+          grep -q "EARLIER DEADLINE" out.txt
+          grep -q "2026-10" out.txt
+
+      - name: JSON output must be machine-readable
+        run: |
+          podfreeze --json Podfile.lock > r.json
+          python -c "import json,sys; d=json.load(open('r.json')); assert d['examined']>=3, d; print('json ok', d['version'])"
+
+      - name: Missing lockfile must exit non-zero
+        run: |
+          mkdir empty && cd empty
+          if podfreeze; then echo "::error::exited 0 with no lockfile"; exit 1; fi
+          echo "correctly refused"
