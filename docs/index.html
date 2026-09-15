@@ -64,7 +64,7 @@
 <p class="sub">Find out which of your CocoaPods dependencies can never receive another
 published version — including a security fix — after <span class="date">2 December 2026</span>.</p>
 
-<pre><code>pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.6.3"
+<pre><code>pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.7.0"
 cd your-ios-project
 podfreeze</code></pre>
 
@@ -161,9 +161,10 @@ what to do about each.</td></tr>
 <tr><td><strong>Do you see my code?</strong></td><td>No, and I never receive anything —
   there is no podfreeze server. The browser checker runs entirely client-side. The free CLI
   scan is <strong>fully offline</strong>: zero network calls, verified by test. Pro queries
-  two <em>public third parties</em> — <code>trunk.cocoapods.org</code> and
-  <code>raw.githubusercontent.com</code> — sending only the pod <em>name</em> in the URL, to
-  find the last published date and whether a SwiftPM package exists. Your lockfile contents
+  three <em>public third parties</em> — <code>trunk.cocoapods.org</code>,
+  <code>raw.githubusercontent.com</code> and <code>api.github.com</code> — sending only the
+  pod <em>name</em> in the URL, to find the last published date and whether a SwiftPM
+  package exists. Your lockfile contents
   are never transmitted. If your lockfile contains private pod names you would rather not
   disclose to those hosts, use the free scan, which makes no requests at all. No telemetry,
   ever.</td></tr>

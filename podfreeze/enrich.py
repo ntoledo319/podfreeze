@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, asdict
@@ -62,6 +63,13 @@ KNOWN_MONOREPOS = {
 from . import __version__ as _v  # noqa: E402
 UA = f"podfreeze/{_v} (+https://github.com/ntoledo319/podfreeze)"
 TIMEOUT = 12
+# Star floor for accepting a GitHub search hit as the canonical source of a pod. Chosen
+# from measurement, not taste: the top "IQKeyboardManagerSwift" hit is a 74-star copy
+# while the real project has ~16k, and every correctly-resolved pod in the sample
+# (KSCrash 4.5k, SnapKit 20k, Alamofire 42k, RxSwift 24k, SwiftLint 19k) clears this by
+# an order of magnitude. Set high deliberately: a wrong migration target is worse than
+# an honest "not found".
+CANONICAL_STARS = 500
 _NET_STATE: bool | None = None
 
 
@@ -156,7 +164,47 @@ def find_swiftpm(name: str, cocoapods_doc: dict | None = None) -> tuple[str | No
     for branch in ("master", "main"):
         if _head_ok(RAW_PKG.format(repo=repo, branch=branch)):
             return repo, True
+
+    # Last resort: GitHub repository search. Held to a deliberately strict rule,
+    # because the failure mode here is worse than "not found" -- a naive top-hit lookup
+    # for IQKeyboardManagerSwift returns a 74-star copy rather than the real 16k-star
+    # project, and pointing a buyer at a stranger's fork as their migration target is
+    # a more damaging answer than admitting the probe could not resolve it.
+    #
+    # Accepted only when the repository name matches EXACTLY, it is not a fork, it
+    # carries enough stars to be plainly canonical, and it really serves a Package.swift.
+    slug, ok = _search_swiftpm(name.split("/")[0])
+    if ok:
+        return slug, True
+
     return repo, None
+
+
+def _search_swiftpm(pod: str) -> tuple[str | None, bool]:
+    """Find a canonical repo for a pod via GitHub search, or give up honestly."""
+    try:
+        import json as _json
+        url = ("https://api.github.com/search/repositories?q="
+               + urllib.parse.quote(f"{pod} in:name") + "&sort=stars&per_page=5")
+        req = urllib.request.Request(url, headers={"User-Agent": UA,
+                                                   "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            items = _json.loads(r.read()).get("items", [])
+    except Exception:  # noqa: BLE001 - search is a bonus, never a requirement
+        return None, False
+
+    for it in items:
+        if it.get("name", "").lower() != pod.lower():
+            continue
+        if it.get("fork"):
+            continue
+        if it.get("stargazers_count", 0) < CANONICAL_STARS:
+            continue
+        full = it.get("full_name", "")
+        for branch in ("main", "master"):
+            if _head_ok(RAW_PKG.format(repo=full, branch=branch)):
+                return full, True
+    return None, False
 
 
 def enrich_one(name: str) -> Enrichment:

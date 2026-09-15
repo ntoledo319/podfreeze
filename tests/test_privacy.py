@@ -93,7 +93,8 @@ def test_pro_never_transmits_lockfile_contents(tmp_path, monkeypatch):
 
 def test_pro_only_contacts_documented_hosts(tmp_path, monkeypatch):
     """The FAQ names exactly two hosts. Contacting a third would make it false."""
-    allowed = {"trunk.cocoapods.org", "raw.githubusercontent.com"}
+    allowed = {"trunk.cocoapods.org", "raw.githubusercontent.com",
+               "api.github.com"}
     hosts: set = set()
 
     def spy(req, *a, **kw):
@@ -151,4 +152,68 @@ def test_monorepo_lookup_does_not_widen_the_host_allowlist(tmp_path, monkeypatch
     from podfreeze.enrich import find_swiftpm
 
     find_swiftpm("FirebaseAuth")
-    assert hosts <= {"raw.githubusercontent.com"}, f"unexpected hosts: {hosts}"
+    assert hosts <= {"raw.githubusercontent.com", "api.github.com"}, (
+        f"unexpected hosts: {hosts}")
+
+
+def test_search_fallback_refuses_a_non_canonical_match(monkeypatch):
+    """A wrong migration target is worse than an honest 'not found'.
+
+    The top GitHub hit for IQKeyboardManagerSwift is a 74-star copy, not the real
+    ~16k-star project. Pointing a buyer at a stranger's fork as their SwiftPM target
+    would be a more damaging answer than admitting the probe could not resolve it.
+    """
+    from podfreeze import enrich as en
+
+    items = {"items": [
+        {"name": "SomePod", "full_name": "randomuser/SomePod",
+         "fork": False, "stargazers_count": 12},          # too few stars
+        {"name": "SomePodFork", "full_name": "other/SomePodFork",
+         "fork": False, "stargazers_count": 9000},        # name mismatch
+        {"name": "SomePod", "full_name": "forker/SomePod",
+         "fork": True, "stargazers_count": 9000},         # a fork
+    ]}
+
+    class FakeResp:
+        def __init__(self, payload): self._p = payload
+        def read(self): import json; return json.dumps(self._p).encode()
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(en.urllib.request, "urlopen", lambda *a, **k: FakeResp(items))
+    monkeypatch.setattr(en, "_head_ok", lambda url: True)  # would accept anything
+    slug, ok = en._search_swiftpm("SomePod")
+    assert ok is False and slug is None, (
+        f"search fallback accepted a non-canonical repo: {slug}")
+
+
+def test_search_fallback_accepts_a_clearly_canonical_match(monkeypatch):
+    from podfreeze import enrich as en
+
+    items = {"items": [
+        {"name": "SomePod", "full_name": "SomePod/SomePod",
+         "fork": False, "stargazers_count": 20000},
+    ]}
+
+    class FakeResp:
+        def __init__(self, payload): self._p = payload
+        def read(self): import json; return json.dumps(self._p).encode()
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(en.urllib.request, "urlopen", lambda *a, **k: FakeResp(items))
+    monkeypatch.setattr(en, "_head_ok", lambda url: True)
+    slug, ok = en._search_swiftpm("SomePod")
+    assert ok is True and slug == "SomePod/SomePod"
+
+
+def test_search_failure_never_breaks_enrichment(monkeypatch):
+    """Search is a bonus. A GitHub outage must not fail a paid report."""
+    from podfreeze import enrich as en
+
+    def boom(*a, **k):
+        raise OSError("github unreachable")
+
+    monkeypatch.setattr(en.urllib.request, "urlopen", boom)
+    slug, ok = en._search_swiftpm("AnyPod")
+    assert (slug, ok) == (None, False)
