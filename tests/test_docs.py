@@ -59,3 +59,35 @@ def test_readme_pins_the_action_to_a_tag():
     assert uses, "README never shows how to reference the action"
     for ref in uses:
         assert ref.startswith("v"), f"action example uses a moving ref: @{ref}"
+
+
+def test_docs_do_not_describe_the_old_backwards_ranking():
+    """Docs must describe the ranking the product actually uses.
+
+    v0.5.0 changed 'What to deal with first' to rank by what you lose at the freeze --
+    actively-published pods first. The README and storefront kept telling buyers that
+    'pods already frozen for years come first', which is the opposite. A buyer would
+    have paid for behaviour the docs described and received something else.
+    """
+    import re as _re
+
+    stale = _re.compile(
+        r"already frozen for years come first|ranked by how long[^.]*static", _re.I)
+    offenders = []
+    for rel in ("README.md", "docs/index.html", "docs/findings.html"):
+        p = ROOT / rel
+        if p.exists() and stale.search(p.read_text(encoding="utf-8")):
+            offenders.append(rel)
+    assert not offenders, (
+        f"these surfaces still describe the pre-v0.5.0 backwards ranking: {offenders}"
+    )
+
+
+def test_ranking_description_matches_implementation():
+    """The phrase the docs use must reflect the real sort order."""
+    from podfreeze.analyse import vendor_cutoff  # noqa: F401  (import proves module wiring)
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
+    assert "what you actually lose" in readme or "still shipping releases come first" in readme, (
+        "README no longer explains the ranking the product uses"
+    )

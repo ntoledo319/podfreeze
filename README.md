@@ -136,7 +136,8 @@ For every exposed pod it fetches from the CocoaPods trunk API:
 - the latest version actually published, and **the date it was published**
 - how long the pod has been static (SDWebImage's last trunk release was **2020**)
 - whether a **`Package.swift` exists** to migrate to
-- a ranked order of work — pods already frozen for years come first
+- a ranked order of work — the pods still shipping releases come first, because
+  those are the ones losing a live update channel at the freeze
 
 ```
 $ podfreeze --pro
@@ -168,7 +169,7 @@ podfreeze audit: scanned 4 Podfile.lock file(s) under /Users/you/code
 ```
 
 The report contains a **blast-radius table** — which of your apps each exposed pod
-appears in — ranked by how long the pod has already been static:
+appears in — ranked by what you actually lose at the freeze:
 
 | Pod | Last published | Static for | Your projects affected | SwiftPM target |
 |---|---|---|---|---|

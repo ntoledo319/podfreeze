@@ -132,7 +132,9 @@ static, and whether a <code>Package.swift</code> exists to migrate to.</p>
 
 <p>The organisation audit scans <em>every</em> <code>Podfile.lock</code> across your
 codebase and writes a dated migration report with a blast-radius table: which of your
-apps each dying pod appears in, ranked by how long it has already been static.</p>
+apps each dying pod appears in, ranked by what you actually lose at the freeze —
+the pods still shipping releases first, since a pod static since 2022 is already frozen
+in practice.</p>
 
 <p>Licence keys verify <strong>offline</strong>. No phone-home, no telemetry, no account.
 Works air-gapped.</p>
