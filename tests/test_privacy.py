@@ -120,3 +120,35 @@ def test_pro_only_contacts_documented_hosts(tmp_path, monkeypatch):
 
     undocumented = hosts - allowed
     assert not undocumented, f"Pro contacted undocumented hosts: {sorted(undocumented)}"
+
+
+def test_known_monorepos_are_not_guesses():
+    """Every monorepo slug must look like a real owner/repo, not a pod-name guess."""
+    from podfreeze.enrich import KNOWN_MONOREPOS
+
+    assert KNOWN_MONOREPOS, "the monorepo map is empty"
+    for pod, slug in KNOWN_MONOREPOS.items():
+        owner, _, repo = slug.partition("/")
+        assert owner and repo, f"{pod}: malformed slug {slug!r}"
+        assert slug != f"{pod}/{pod}", (
+            f"{pod}: slug is just the guessed path, which the fallback already tries"
+        )
+
+
+def test_monorepo_lookup_does_not_widen_the_host_allowlist(tmp_path, monkeypatch):
+    """Resolving a monorepo must still only contact raw.githubusercontent.com."""
+    from urllib.parse import urlparse
+    import urllib.request
+
+    hosts: set = set()
+
+    def spy(req, *a, **kw):
+        url = req.get_full_url() if hasattr(req, "get_full_url") else str(req)
+        hosts.add(urlparse(url).netloc)
+        raise OSError("blocked")
+
+    monkeypatch.setattr(urllib.request, "urlopen", spy)
+    from podfreeze.enrich import find_swiftpm
+
+    find_swiftpm("FirebaseAuth")
+    assert hosts <= {"raw.githubusercontent.com"}, f"unexpected hosts: {hosts}"

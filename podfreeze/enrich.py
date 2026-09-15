@@ -31,7 +31,36 @@ from dataclasses import dataclass, asdict
 
 TRUNK_API = "https://trunk.cocoapods.org/api/v1/pods/{name}"
 RAW_PKG = "https://raw.githubusercontent.com/{repo}/{branch}/Package.swift"
-UA = "podfreeze/0.3.2 (+https://github.com/ntoledo319/podfreeze)"
+
+# Pods published from a shared monorepo, where the owner/name guess gives a FALSE
+# negative. Every slug here was verified to serve a real Package.swift (HTTP 200) --
+# none are from memory. Firebase alone publishes ~40 pods from one repository, and the
+# Firebase pods are exactly the ones facing the earlier October 2026 vendor cutoff, so
+# telling a buyer "no SwiftPM target found" for them would be both wrong and expensive.
+KNOWN_MONOREPOS = {
+    "FirebaseAnalytics": "firebase/firebase-ios-sdk",
+    "FirebaseAuth": "firebase/firebase-ios-sdk",
+    "FirebaseCore": "firebase/firebase-ios-sdk",
+    "FirebaseCrashlytics": "firebase/firebase-ios-sdk",
+    "FirebaseDatabase": "firebase/firebase-ios-sdk",
+    "FirebaseDynamicLinks": "firebase/firebase-ios-sdk",
+    "FirebaseFirestore": "firebase/firebase-ios-sdk",
+    "FirebaseInAppMessaging": "firebase/firebase-ios-sdk",
+    "FirebaseMessaging": "firebase/firebase-ios-sdk",
+    "FirebasePerformance": "firebase/firebase-ios-sdk",
+    "FirebaseRemoteConfig": "firebase/firebase-ios-sdk",
+    "FirebaseStorage": "firebase/firebase-ios-sdk",
+    "Firebase": "firebase/firebase-ios-sdk",
+    "GoogleUtilities": "google/GoogleUtilities",
+    "GoogleSignIn": "google/GoogleSignIn-iOS",
+    "GTMSessionFetcher": "google/gtm-session-fetcher",
+    "AppAuth": "openid/AppAuth-iOS",
+    "Sentry": "getsentry/sentry-cocoa",
+    "Realm": "realm/realm-swift",
+    "RealmSwift": "realm/realm-swift",
+}
+from . import __version__ as _v  # noqa: E402
+UA = f"podfreeze/{_v} (+https://github.com/ntoledo319/podfreeze)"
 TIMEOUT = 12
 _NET_STATE: bool | None = None
 
@@ -109,7 +138,20 @@ def find_swiftpm(name: str, cocoapods_doc: dict | None = None) -> tuple[str | No
     never guessed. Absence of Package.swift at the conventional path does NOT prove the
     library has no SwiftPM support, so a negative is reported as 'not found at the
     conventional path', not as 'no SwiftPM support'.
+
+    The CocoaPods trunk API does not expose a pod's source repository (it returns only
+    versions and owners), so the owner/name guess is the only general probe available.
+    It is wrong for vendors who ship many pods from one monorepo -- Firebase publishes
+    ~40 pods from firebase/firebase-ios-sdk, so guessing FirebaseAuth/FirebaseAuth
+    misses a Package.swift that plainly exists. Those are resolved from a small explicit
+    map of verified monorepos rather than reported as a false negative.
     """
+    slug = KNOWN_MONOREPOS.get(name.split("/")[0])
+    if slug:
+        for branch in ("main", "master"):
+            if _head_ok(RAW_PKG.format(repo=slug, branch=branch)):
+                return slug, True
+
     repo = f"{name}/{name}"
     for branch in ("master", "main"):
         if _head_ok(RAW_PKG.format(repo=repo, branch=branch)):

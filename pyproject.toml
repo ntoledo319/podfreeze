@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "podfreeze"
-version = "0.4.1"
+version = "0.4.2"
 description = "Find which CocoaPods dependencies can never receive another security patch after the 2 Dec 2026 trunk freeze"
 readme = "README.md"
 requires-python = ">=3.9"
