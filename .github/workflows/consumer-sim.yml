@@ -1,6 +1,12 @@
 name: consumer-simulation
 
 on:
+  # Runs automatically. This is the only check that exercises the GitHub Action the way
+  # an external consumer does, and it sat unrun for ~20 commits - including a parser
+  # change and a ranking change - while everything else stayed green.
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
