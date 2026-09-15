@@ -47,7 +47,11 @@ def shipping_version() -> str:
 
 
 def _pinned_files():
-    for rel in ("README.md", "docs/index.html", "action.yml"):
+    # reproduce_findings.py was omitted and drifted three releases behind: anyone
+    # verifying the published findings would have installed a build predating the
+    # name-collision fix. The verification path needs the same pin discipline.
+    for rel in ("README.md", "docs/index.html", "action.yml",
+                "reproduce_findings.py"):
         p = ROOT / rel
         if p.exists():
             yield p

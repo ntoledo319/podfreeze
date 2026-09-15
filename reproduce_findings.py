@@ -14,7 +14,7 @@ and the collection step fetches them fresh from public repositories.
 
 Requires: the `gh` CLI, authenticated (`gh auth login`), and podfreeze installed.
 
-    pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.5.2"
+    pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.0"
     python3 reproduce_findings.py --out results.json
 
 Expect differences from the published run: GitHub code search results change over time,
@@ -126,7 +126,7 @@ def main() -> int:
         return 2
     if not shutil.which("podfreeze"):
         print('needs podfreeze: pip install "podfreeze @ '
-              'git+https://github.com/ntoledo319/podfreeze@v0.5.2"', file=sys.stderr)
+              'git+https://github.com/ntoledo319/podfreeze@v0.8.0"', file=sys.stderr)
         return 2
 
     tmp = Path(tempfile.mkdtemp(prefix="podfreeze-corpus-"))
@@ -187,6 +187,7 @@ def main() -> int:
         print(f"    {m}")
     print(f"\n  written to {args.out}")
     print("  published run: 83 examined, 57 determinable, 55 exposed (96.5%)")
+    print("  (measured with v0.5.1, re-verified unchanged under v0.8.0)")
     return 0
 
 
