@@ -29,3 +29,8 @@ dev = ["pytest>=7", "pyyaml>=6"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["podfreeze"]
+
+[tool.pytest.ini_options]
+markers = [
+    "network: hits the live site; skipped automatically when unreachable",
+]
