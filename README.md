@@ -74,6 +74,50 @@ spec repos declared: https://github.internal.example/ios/Specs.git, trunk
 
 `--json` gives machine-readable output for CI.
 
+## Use it in CI
+
+The GitHub Action is free and needs no licence key. It fails the build only if you ask
+it to:
+
+```yaml
+name: podfreeze
+on: [pull_request]
+
+jobs:
+  cocoapods-freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ntoledo319/podfreeze@v0.4.1
+        with:
+          path: Podfile.lock
+          fail-on-exposed: 'false'   # 'true' to block the PR on any trunk-resolved pod
+```
+
+Inputs:
+
+| input | default | meaning |
+|---|---|---|
+| `path` | `Podfile.lock` | lockfile, or a directory containing one |
+| `fail-on-exposed` | `false` | exit non-zero if any pod resolves from trunk |
+| `comment-on-pr` | `false` | post the report as a PR comment (needs `pull-requests: write`) |
+| `license` | *(empty)* | Pro licence key — enables the `--pro` migration plan |
+
+Outputs: `exposed-count`, `examined-count`, `report-path`.
+
+With a Pro key, pass it from a secret to get the prioritised migration plan in CI:
+
+```yaml
+      - uses: ntoledo319/podfreeze@v0.4.1
+        with:
+          license: ${{ secrets.PODFREEZE_LICENSE }}
+```
+
+A note on `fail-on-exposed`: most projects should leave it `false` at first. The freeze
+does not break your build, so blocking every PR on day one is noise. Turn it on once
+you have migrated the pods you intend to migrate, to stop new trunk dependencies
+appearing.
+
 ## Pro
 
 The free tool tells you **which** pods are exposed. Pro tells you **what to do about
