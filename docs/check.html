@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check your Podfile.lock — CocoaPods trunk freeze (2 Dec 2026)</title>
+<meta name="description" content="Paste your Podfile.lock and see which CocoaPods dependencies can never receive another published security patch after trunk goes read-only on 2 December 2026. Runs entirely in your browser — nothing is uploaded.">
+<link rel="canonical" href="https://ntoledo319.github.io/podfreeze/check.html">
+<style>
+  :root{--bg:#0d1117;--fg:#e6edf3;--mut:#8b949e;--acc:#f0883e;--ok:#3fb950;--line:#30363d;--card:#161b22}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .wrap{max-width:820px;margin:0 auto;padding:40px 20px 80px}
+  h1{font-size:1.9rem;margin:0 0 .25em;letter-spacing:-.02em}
+  .sub{color:var(--mut);margin:0 0 1.6em}
+  textarea{width:100%;height:230px;background:var(--card);color:var(--fg);
+           border:1px solid var(--line);border-radius:6px;padding:12px;
+           font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+  button{background:var(--acc);color:#0d1117;font-weight:600;font-size:1rem;
+         padding:11px 22px;border:0;border-radius:6px;cursor:pointer;margin:10px 8px 0 0}
+  button.alt{background:transparent;color:var(--fg);border:1px solid var(--line)}
+  .priv{color:var(--ok);font-size:.85rem;margin-top:10px}
+  table{border-collapse:collapse;width:100%;font-size:.9rem;margin:1em 0}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+  th{background:var(--card)}
+  .exposed{color:var(--acc);font-weight:600}
+  .safe{color:var(--ok)}
+  #out{margin-top:2em}
+  .box{background:var(--card);border-left:3px solid var(--acc);padding:12px 16px;
+       border-radius:0 6px 6px 0;margin:1.4em 0}
+  .err{border-left-color:#f85149}
+  a{color:#58a6ff}
+  code{background:var(--card);padding:.15em .4em;border-radius:4px;font-size:.9em}
+  footer{margin-top:3em;padding-top:1.2em;border-top:1px solid var(--line);
+         color:var(--mut);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Check your <code>Podfile.lock</code></h1>
+<p class="sub">Which of your pods can never receive another published security patch after
+CocoaPods trunk goes read-only on <strong>2 December 2026</strong>?</p>
+
+<textarea id="in" spellcheck="false" placeholder="Paste the contents of your Podfile.lock here…
+
+PODS:
+  - Alamofire (5.8.1)
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+
+COCOAPODS: 1.15.2"></textarea>
+
+<div>
+  <button onclick="run()">Check exposure</button>
+  <button class="alt" onclick="demo()">Load an example</button>
+</div>
+<p class="priv">✓ Runs entirely in your browser. Nothing is uploaded, stored, or logged —
+this page has no server and no analytics.</p>
+
+<div id="out"></div>
+
+<footer>
+Source: <a href="https://blog.cocoapods.org/CocoaPods-Specs-Repo/">CocoaPods Trunk
+Read-only Plan</a>. Same analysis as the
+<a href="https://github.com/ntoledo319/podfreeze">open-source CLI</a> (MIT).
+<a href="./">About podfreeze</a>
+</footer>
+
+</div>
+
+<script>
+// Minimal Podfile.lock reader. Deliberately NOT a general YAML parser: it reads the
+// three sections that decide trunk exposure. Same logic as the Python CLI.
+const TRUNK = new Set(['trunk','https://github.com/cocoapods/specs.git',
+  'https://cdn.cocoapods.org/','https://cdn.cocoapods.org','master']);
+
+function parseLock(text){
+  if(!text.trim()) throw new Error('empty input');
+  const lines = text.replace(/\r\n/g,'\n').replace(/^\uFEFF/,'').split('\n');
+  let section=null, repo=null;
+  const pods=[], specRepos={}, external=new Set();
+  let sawPods=false, sawSpecRepos=false;
+
+  for(const raw of lines){
+    if(!raw.trim()) continue;
+    const top = raw.match(/^([A-Z][A-Z ]+):\s*(.*)$/);
+    if(top){
+      section = top[1].trim(); repo=null;
+      if(section==='PODS') sawPods=true;
+      if(section==='SPEC REPOS') sawSpecRepos=true;
+      continue;
+    }
+    const indent = raw.match(/^ */)[0].length;
+
+    if(section==='PODS' && indent===2 && raw.trim().startsWith('- ')){
+      let e = raw.trim().slice(2).trim();
+      if(e.endsWith(':')) e = e.slice(0,-1);
+      if(e.startsWith('"')&&e.lastIndexOf('"')>0) e = e.slice(1,e.lastIndexOf('"'));
+      const m = e.match(/^([^\s(]+)\s*(?:\(([^)]*)\))?/);
+      if(m) pods.push({name:m[1].split('/')[0], version:m[2]||null});
+    }
+    if(section==='SPEC REPOS'){
+      if(indent===2 && raw.trim().endsWith(':')){
+        repo = raw.trim().slice(0,-1).replace(/^["']|["']$/g,'');
+        specRepos[repo] = specRepos[repo]||[];
+      } else if(indent>=4 && raw.trim().startsWith('- ') && repo!==null){
+        specRepos[repo].push(raw.trim().slice(2).replace(/^["']|["']$/g,''));
+      }
+    }
+    if(section==='EXTERNAL SOURCES' && indent===2 && raw.trim().endsWith(':')){
+      external.add(raw.trim().slice(0,-1).replace(/^["']|["']$/g,''));
+    }
+  }
+  if(!sawPods) throw new Error('no PODS section found — is this really a Podfile.lock?');
+  return {pods, specRepos, external, sawSpecRepos};
+}
+
+function analyse(L){
+  // pod -> every repo it appears under; ambiguity resolves toward EXPOSED.
+  const src = {};
+  for(const [repo,names] of Object.entries(L.specRepos))
+    for(const n of names) (src[n]=src[n]||[]).push(repo);
+
+  const seen = new Set(), rows=[];
+  for(const p of L.pods){
+    if(seen.has(p.name)) continue;
+    seen.add(p.name);
+    let cat, why;
+    if(L.external.has(p.name)){ cat='safe'; why='pinned via EXTERNAL SOURCES — bypasses trunk'; }
+    else {
+      const repos = src[p.name];
+      if(!repos){
+        if(!L.sawSpecRepos){ cat='unknown'; why='no SPEC REPOS section (CocoaPods &lt; 1.7) — source undetermined'; }
+        else { cat='exposed'; why='resolves from CocoaPods trunk'; }
+      } else if(repos.some(r=>TRUNK.has(r.trim().toLowerCase()))){
+        cat='exposed'; why='resolves from CocoaPods trunk';
+      } else { cat='safe'; why='private spec repo: '+repos[0]; }
+    }
+    rows.push({...p, cat, why});
+  }
+  return rows;
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function run(){
+  const out = document.getElementById('out');
+  let rows;
+  try { rows = analyse(parseLock(document.getElementById('in').value)); }
+  catch(e){
+    out.innerHTML = '<div class="box err"><strong>Could not read that.</strong><br>'+
+      esc(e.message)+'<br><br>This tool reports an error rather than a clean result when '+
+      'it cannot parse the file — "found nothing" and "could not read it" must not look '+
+      'the same.</div>';
+    return;
+  }
+  const exposed = rows.filter(r=>r.cat==='exposed');
+  const safe = rows.filter(r=>r.cat==='safe');
+  const unknown = rows.filter(r=>r.cat==='unknown');
+
+  let h = '<h2>Result</h2><p>Examined <strong>'+rows.length+'</strong> pod(s).</p>';
+  h += '<table><tr><th>Pod</th><th>Version</th><th>Status</th><th>Why</th></tr>';
+  for(const r of rows){
+    const label = r.cat==='exposed' ? '<span class="exposed">exposed</span>'
+                : r.cat==='safe' ? '<span class="safe">insulated</span>' : 'unknown';
+    h += '<tr><td><code>'+esc(r.name)+'</code></td><td>'+esc(r.version||'—')+
+         '</td><td>'+label+'</td><td>'+r.why+'</td></tr>';
+  }
+  h += '</table>';
+
+  h += '<div class="box"><strong>Your build does not break.</strong> Existing versions '+
+       'keep resolving from the Specs repo and the jsDelivr CDN — a Podfile that resolves '+
+       'today resolves identically after the freeze.<br><br>';
+  if(exposed.length){
+    h += 'What changes: the <strong>'+exposed.length+'</strong> pod(s) marked exposed can '+
+         'never receive another <em>published</em> version on the coordinate you depend on, '+
+         'including a fix for a future vulnerability. If one ships a patch after 2 Dec 2026, '+
+         'it cannot reach you through trunk.';
+  } else {
+    h += 'No pod here resolves from trunk, so the freeze does not change how this project '+
+         'receives updates.';
+  }
+  h += '</div>';
+  if(unknown.length){
+    h += '<div class="box">'+unknown.length+' pod(s) could not be traced: this lockfile has '+
+         'no <code>SPEC REPOS</code> section (written by CocoaPods &lt; 1.7). They are '+
+         'reported as unknown rather than guessed. Re-run <code>pod install</code> with a '+
+         'modern CocoaPods for an exact answer.</div>';
+  }
+  if(exposed.length){
+    h += '<h2>Next</h2><p>The <a href="https://github.com/ntoledo319/podfreeze">free CLI</a> '+
+         'runs this in CI so it stays checked. For <em>what to do about each pod and in what '+
+         'order</em> — real last-published dates from the CocoaPods trunk API, how long each '+
+         'pod has been static, and whether a SwiftPM target exists — see '+
+         '<a href="./#pro">podfreeze Pro</a>.</p>';
+  }
+  out.innerHTML = h;
+  out.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function demo(){
+  document.getElementById('in').value =
+`PODS:
+  - Alamofire (5.8.1)
+  - SDWebImage (5.18.10)
+  - InternalAuth (2.1.0)
+  - LocalKit (0.9.0)
+
+DEPENDENCIES:
+  - Alamofire (~> 5.8)
+  - SDWebImage
+  - InternalAuth
+  - LocalKit (from \`../LocalKit\`)
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+    - SDWebImage
+  https://github.internal.example/ios/Specs.git:
+    - InternalAuth
+
+EXTERNAL SOURCES:
+  LocalKit:
+    :path: "../LocalKit"
+
+COCOAPODS: 1.15.2`;
+  run();
+}
+</script>
+</body>
+</html>
