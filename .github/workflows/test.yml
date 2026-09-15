@@ -17,8 +17,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      # node is REQUIRED, not optional: the parity tests execute the browser checker's
+      # real parser and compare it against the CLI. Without node they skip, and a skip
+      # reported as green is how the two implementations silently drifted once already.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - run: pip install -e ".[dev]"
-      - run: python -m pytest tests -q
+      # -p no:randomly keeps ordering stable; --strict-markers catches typo'd marks.
+      # The grep gate fails the build if ANY test skipped: every guard must actually run.
+      - name: Run tests, failing on any skip
+        run: |
+          set -o pipefail   # without this, tee masks a pytest failure
+          python -m pytest tests -q -rs --strict-markers | tee /tmp/pytest.out
+          if grep -qE '[0-9]+ skipped' /tmp/pytest.out; then
+            echo "::error::a test SKIPPED in CI — a disarmed guard reports green"
+            exit 1
+          fi
 
   action-selftest:
     runs-on: ubuntu-latest
