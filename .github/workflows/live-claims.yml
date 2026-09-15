@@ -32,8 +32,12 @@ jobs:
 
       # A scheduled check nobody reads is not a check. If a live claim has become false,
       # open an issue -- the same support route buyers are pointed at.
+      #
+      # Fires on schedule AND dispatch: restricting it to schedule made the alert path
+      # untestable, so the only way to learn whether it worked would have been a real
+      # failure at an unattended moment.
       - name: Report a broken claim
-        if: failure() && github.event_name == 'schedule'
+        if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         uses: actions/github-script@v7
         with:
           script: |
