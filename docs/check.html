@@ -231,6 +231,12 @@ function run(){
          'never receive another <em>published</em> version on the coordinate you depend on, '+
          'including a fix for a future vulnerability. If one ships a patch after 2 Dec 2026, '+
          'it cannot reach you through trunk.';
+    // Mentioning vulnerabilities invites the inference that this checks them. It does
+    // not, and no tool honestly can: no vulnerability database covers CocoaPods.
+    h += '<br><br><strong>This reports no vulnerability data.</strong> It does not know '+
+         'whether any pod above has a known CVE — no vulnerability database covers the '+
+         'CocoaPods ecosystem. What is shown is which pods can no longer <em>receive</em> '+
+         'a fix, not which pods need one.';
   } else {
     h += 'No pod here resolves from trunk, so the freeze does not change how this project '+
          'receives updates.';

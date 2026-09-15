@@ -219,3 +219,20 @@ def test_checker_leads_with_the_same_summary_as_the_cli():
     cli_exposed = len([f for f in rep.findings if f.category == "trunk"])
     assert got["n"] == rep.examined, f"examined: browser={got['n']} cli={rep.examined}"
     assert got["e"] == cli_exposed, f"exposed: browser={got['e']} cli={cli_exposed}"
+
+
+def test_all_three_surfaces_disclaim_vulnerability_data():
+    """One honesty claim, three implementations. All must carry it.
+
+    The CVE disclaimer existed only in the paid report for most of this project's life,
+    while the two free surfaces -- which far more people run -- mentioned CVEs without
+    it. A disclaimer that lives in the tier nobody reaches is not a disclaimer.
+    """
+    cli = (ROOT / "podfreeze" / "cli.py").read_text(encoding="utf-8")
+    audit = (ROOT / "podfreeze" / "audit.py").read_text(encoding="utf-8")
+    checker = _js_source()
+
+    assert "reports NO vulnerability data" in cli, "CLI lost the CVE disclaimer"
+    assert "no vulnerability database" in checker.lower(), "checker lost the CVE disclaimer"
+    assert ("NO CVE data" in audit or "no vulnerability database" in audit.lower()), (
+        "paid audit lost the CVE disclaimer")

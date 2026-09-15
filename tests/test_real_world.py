@@ -329,3 +329,39 @@ def test_singular_grammar_when_one_pod_has_an_earlier_cutoff(tmp_path, capsys):
     main([str(lock)])
     out = capsys.readouterr().out
     assert "1 of them faces an EARLIER" in out, "singular grammar regressed"
+
+
+def test_free_scan_disclaims_vulnerability_data(tmp_path, capsys):
+    """Mentioning CVEs without disclaiming them invites a false inference.
+
+    The output says a pod "can never receive a CVE patch", which reads as though the
+    tool knows something about vulnerabilities. It does not, and none honestly can: no
+    vulnerability database covers CocoaPods. The paid report has disclaimed this since
+    it shipped; the free tier -- run far more often -- did not.
+    """
+    from podfreeze.cli import main
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(
+        "PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+        "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
+    main([str(lock)])
+    out = capsys.readouterr().out
+    assert "CVE" in out, "fixture no longer exercises the CVE-mentioning branch"
+    assert "reports NO vulnerability data" in out, (
+        "the free scan mentions CVEs without disclaiming that it checks none")
+    assert "can no longer RECEIVE a fix, not which" in out, (
+        "the distinction between 'cannot receive a fix' and 'needs one' was lost")
+
+
+def test_clean_lockfile_does_not_get_the_cve_disclaimer(tmp_path, capsys):
+    """A project with no exposure should not be handed an irrelevant caveat."""
+    from podfreeze.cli import main
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text(
+        "PODS:\n  - LocalKit (1.0)\n\nDEPENDENCIES:\n  - LocalKit\n\n"
+        "SPEC REPOS:\n  https://github.internal.corp/Specs.git:\n    - LocalKit\n\n"
+        "COCOAPODS: 1.15.2\n")
+    main([str(lock)])
+    out = capsys.readouterr().out
+    assert "reports NO vulnerability data" not in out, (
+        "clean projects should not receive the CVE disclaimer")

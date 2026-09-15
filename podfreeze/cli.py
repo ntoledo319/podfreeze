@@ -117,6 +117,17 @@ def render(rep: Report, path: Path) -> str:
         a("  a future security vulnerability. If one of them ships a CVE patch after")
         a("  the freeze, it cannot reach you through trunk; you would pin a git fork")
         a("  by hand.")
+        a("")
+        # This output mentions CVEs and security vulnerabilities, which invites the
+        # inference that the tool checks them. It does not, and no tool honestly can:
+        # no vulnerability database covers the CocoaPods ecosystem. The paid report has
+        # said so since it shipped; the free tier -- run far more often -- did not.
+        a("  NOTE  This tool reports NO vulnerability data, and does not know whether")
+        a("        any pod above has a known CVE. No vulnerability database covers the")
+        a("        CocoaPods ecosystem: OSV.dev rejects 'CocoaPods' as an invalid")
+        a("        ecosystem and GitHub's advisory API returns 422 for it. What is")
+        a("        reported here is which pods can no longer RECEIVE a fix, not which")
+        a("        pods need one.")
     else:
         a("  No pod in this lockfile resolves from trunk, so the freeze does not")
         a("  change how this project receives updates.")
