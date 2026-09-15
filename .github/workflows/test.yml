@@ -29,7 +29,11 @@ jobs:
       - name: Run tests, failing on any skip
         run: |
           set -o pipefail   # without this, tee masks a pytest failure
-          python -m pytest tests -q -rs --strict-markers | tee /tmp/pytest.out
+          # Deselect the network tests here. They legitimately SKIP when the live site is
+          # unreachable -- an outage is not a false claim -- which collides with the
+          # no-skip gate below. Both rules are right; they cannot share a job. The live
+          # claims are checked by live-claims.yml, which is allowed to skip.
+          python -m pytest tests -q -rs --strict-markers -m "not network" | tee /tmp/pytest.out
           if grep -qE '[0-9]+ skipped' /tmp/pytest.out; then
             echo "::error::a test SKIPPED in CI — a disarmed guard reports green"
             exit 1
