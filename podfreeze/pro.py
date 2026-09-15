@@ -78,12 +78,28 @@ def _priority(e: Enrichment) -> tuple[int, str]:
     return (3, "could not determine")
 
 
-def render_pro(rep: Report, licensed: bool) -> str:
+def render_pro(rep: Report, licensed: bool, key_supplied: bool = False) -> str:
     L: list[str] = []
     a = L.append
     exposed = rep.exposed
     if not licensed:
         a("")
+        if key_supplied:
+            # A buyer who typos their key was shown the same upsell as someone who
+            # never bought -- so the natural conclusion is "I was never sent a key",
+            # not "I mistyped it". Say which it is.
+            a("  LICENCE KEY NOT RECOGNISED")
+            a("")
+            a("  A key was supplied but did not verify. Keys look like")
+            a("    PDFZ1-XXXXXXXXXXXX-XXXXXXXXXXXXXXXX")
+            a("  and are in your Stripe confirmation and receipt. Check for a missing")
+            a("  character or a stray space. Case and surrounding whitespace do not")
+            a("  matter -- the check normalises both.")
+            a("")
+            a("  If it still fails, open an issue and it will be fixed or refunded:")
+            a("  https://github.com/ntoledo319/podfreeze/issues")
+            a("")
+            return "\n".join(L)
         a("  PRO — migration plan for the pods above")
         a("")
         a("  Pro adds, for each exposed pod:")

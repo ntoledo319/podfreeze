@@ -632,3 +632,49 @@ def test_audit_reports_paths_it_could_not_examine(tmp_path):
         assert "does not cover them" in md
     finally:
         os.chmod(tmp_path / "NoPerm", stat.S_IRWXU)
+
+
+def test_rejected_key_is_distinguishable_from_no_key(tmp_path, capsys, monkeypatch):
+    """A buyer who typos their key must not see the same upsell as a non-buyer.
+
+    Both produced 'PRO - migration plan for the pods above', so the natural conclusion
+    for a paying customer was "I was never sent a key" rather than "I mistyped it".
+    """
+    from podfreeze.cli import main
+
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text("PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+                    "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
+
+    monkeypatch.delenv("PODFREEZE_LICENSE", raising=False)
+    main(["--pro", str(lock)])
+    no_key = capsys.readouterr().out
+    assert "PRO — migration plan for the pods above" in no_key
+    assert "NOT RECOGNISED" not in no_key
+
+    monkeypatch.setenv("PODFREEZE_LICENSE", "PDFZ1-NOT-A-REAL-KEY")
+    main(["--pro", str(lock)])
+    bad_key = capsys.readouterr().out
+    assert "LICENCE KEY NOT RECOGNISED" in bad_key, (
+        "a rejected key shows the same output as having no key at all")
+    assert "issues" in bad_key, "no route to support or a refund"
+    assert no_key != bad_key
+
+
+def test_rejected_key_message_does_not_misstate_the_check(tmp_path, capsys, monkeypatch):
+    """The key check normalises case and whitespace; the message must not claim otherwise."""
+    from podfreeze.cli import main
+    from podfreeze.pro import verify_license
+
+    lock = tmp_path / "Podfile.lock"
+    lock.write_text("PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+                    "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
+    monkeypatch.setenv("PODFREEZE_LICENSE", "PDFZ1-NOPE-NOPE")
+    main(["--pro", str(lock)])
+    out = capsys.readouterr().out
+    assert "case-sensitive" not in out, (
+        "the message claims case sensitivity the check does not enforce")
+
+    # and prove the check really is tolerant
+    key = "PDFZ1-O110FBF11EE4-69DEE505AB1993B2"
+    assert verify_license(key) is verify_license("  " + key.lower() + "  ")

@@ -15,6 +15,8 @@ Try it with no install: https://ntoledo319.github.io/podfreeze/check.html
 """
 from __future__ import annotations
 
+import os
+
 import argparse
 import json
 import sys
@@ -241,7 +243,14 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(render(rep, path))
         if args.pro:
-            print(render_pro(rep, verify_license(args.license_key)))
+            # Pass whether a key was actually supplied, so a rejected key produces
+            # "not recognised" rather than the same upsell a non-buyer sees.
+            # verify_license also reads PODFREEZE_LICENSE, so checking only the flag
+            # made "supplied" always False for env-var users -- the common case.
+            supplied = bool((args.license_key
+                             or os.environ.get("PODFREEZE_LICENSE") or "").strip())
+            print(render_pro(rep, verify_license(args.license_key),
+                             key_supplied=supplied))
         elif rep.exposed:
             print(render_pro(rep, licensed=False))
     return 0
