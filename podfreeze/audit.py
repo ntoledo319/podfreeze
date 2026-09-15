@@ -153,6 +153,11 @@ def render_markdown(audit: Audit, root: Path) -> str:
         a(f"| — still publishing (lose a live channel) | **{len(live_pods)}** |")
         a(f"| — static 1–3 years | {len(aging)} |")
         a(f"| — static 3+ years (already frozen in practice) | {len(frozen)} |")
+    elif usage:
+        # Every publication lookup failed. The triage rows are correctly omitted -- but
+        # omitting them silently leaves a buyer wondering where the breakdown went, or
+        # worse, not noticing. Say it.
+        a(f"| — publication dates | **could not be determined for any pod** |")
     if audit.failed_projects:
         a(f"| Projects that could not be parsed | {len(audit.failed_projects)} |")
     a("")
@@ -185,13 +190,24 @@ def render_markdown(audit: Audit, root: Path) -> str:
     # --- Priority order, evidence-based ---
     a("## What to deal with first")
     a("")
-    a("Ranked by **what you actually lose** at the freeze. A pod still publishing "
-      "regularly has a live update channel — including security fixes — that the freeze "
-      "takes away, so it is the real exposure. A pod that has not published in years is "
-      "already frozen in practice; the December date only formalises it, and migrating "
-      "it is housekeeping rather than risk. Blast radius is the number of your projects "
-      "affected.")
-    a("")
+    # With no publication dates there is no ranking -- the rows are in an arbitrary
+    # order. Claiming "ranked by what you actually lose" over an unranked list is the
+    # same failure as reporting a timeout as "not found": a confident frame around
+    # missing data.
+    if not (live_pods or aging or frozen) and usage:
+        a("**Not ranked — publication dates were unavailable for every pod.** The trunk "
+          "API could not be reached, so this is the exposed list in arbitrary order, not "
+          "a priority order. Re-run when the lookup succeeds to get the ranking you "
+          "paid for.")
+        a("")
+    else:
+        a("Ranked by **what you actually lose** at the freeze. A pod still publishing "
+          "regularly has a live update channel — including security fixes — that the "
+          "freeze takes away, so it is the real exposure. A pod that has not published "
+          "in years is already frozen in practice; the December date only formalises it, "
+          "and migrating it is housekeeping rather than risk. Blast radius is the number "
+          "of your projects affected.")
+        a("")
     # Name the starting point. A ranked list is only a plan if it says where to stop.
     if live_pods:
         names = ", ".join(f"`{p}`" for p, _ in sorted(live_pods, key=lambda x: x[1])[:5])

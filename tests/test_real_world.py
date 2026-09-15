@@ -483,3 +483,62 @@ def test_head_probe_distinguishes_absence_from_inability(monkeypatch):
             f"{type(exc).__name__} {getattr(exc, 'code', '')}: disclosed={disclosed}, "
             f"expected {should_disclose}")
     en.SEARCH_BLOCKED["count"] = 0
+
+
+def test_total_enrichment_failure_is_stated_not_implied(tmp_path, monkeypatch):
+    """No data means no ranking. Say that, do not imply one.
+
+    When every publication lookup fails, the triage rows are correctly omitted -- but
+    silence leaves a buyer wondering where the breakdown went. Worse, the priority
+    section still claimed 'Ranked by what you actually lose' over rows in arbitrary
+    order: a confident frame around missing data.
+    """
+    from podfreeze import audit as audit_mod
+    from podfreeze.enrich import Enrichment
+
+    proj = tmp_path / "App"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - PodA (1.0)\n  - PodB (2.0)\n\nDEPENDENCIES:\n  - PodA\n  - PodB\n\n"
+        "SPEC REPOS:\n  trunk:\n    - PodA\n    - PodB\n\nCOCOAPODS: 1.15.2\n")
+    monkeypatch.setattr(audit_mod, "enrich", lambda names, workers=8: [
+        Enrichment(pod=n, latest_version=None, latest_published=None,
+                   total_versions=0, error="NETWORK UNAVAILABLE") for n in names])
+
+    md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+
+    assert "could not be determined for any pod" in md, (
+        "the summary goes silent instead of saying the lookups failed")
+    assert "Not ranked" in md, (
+        "the priority section still frames an arbitrary order as a ranking")
+    assert "Ranked by **what you actually lose**" not in md, (
+        "the report claims a ranking it could not compute")
+
+
+def test_partial_enrichment_still_ranks(tmp_path, monkeypatch):
+    """A degraded run must not throw away the data it DID get."""
+    from podfreeze import audit as audit_mod
+    from podfreeze.enrich import Enrichment
+
+    proj = tmp_path / "App"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - GoodPod (1.0)\n  - BadPod (2.0)\n\nDEPENDENCIES:\n  - GoodPod\n  - BadPod\n\n"
+        "SPEC REPOS:\n  trunk:\n    - GoodPod\n    - BadPod\n\nCOCOAPODS: 1.15.2\n")
+
+    def half(names, workers=8):
+        out = []
+        for n in names:
+            if n == "GoodPod":
+                out.append(Enrichment(pod=n, latest_version="1.0",
+                                      latest_published="2026-08-01", total_versions=5))
+            else:
+                out.append(Enrichment(pod=n, latest_version=None, latest_published=None,
+                                      total_versions=0, error="NETWORK UNAVAILABLE"))
+        return out
+
+    monkeypatch.setattr(audit_mod, "enrich", half)
+    md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+    assert "Ranked by **what you actually lose**" in md, (
+        "a partially-successful run should still rank what it knows")
+    assert "Not ranked" not in md
