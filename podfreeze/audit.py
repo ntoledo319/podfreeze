@@ -366,4 +366,23 @@ def render_markdown(audit: Audit, root: Path) -> str:
       "'no advisories' for everything — a broken join that looks identical to a clean "
       "result.")
     a("")
+    # This report is the only artifact a buyer keeps. The refund promise and the support
+    # route live on the storefront and in the Stripe confirmation -- pages they may never
+    # open again. A deliverable that sends you off to check pod READMEs and gives you no
+    # way back to the seller is a deliverable that quietly makes refunds harder to claim.
+    a("## If something here is wrong")
+    a("")
+    a("A wrong result matters more than a missing feature. If a pod is listed as "
+    "insulated and you believe it is exposed, that is the most valuable thing you can "
+    "report — one such case has already been found and fixed.")
+    a("")
+    a("- Report it: <https://github.com/ntoledo319/podfreeze/issues>")
+    a("- Source and free CLI: <https://github.com/ntoledo319/podfreeze>")
+    a("- Reproduce the published findings yourself: "
+    "<https://github.com/ntoledo319/podfreeze/blob/main/reproduce_findings.py>")
+    a("")
+    a("**Refunds are given on request, with no argument and no time limit.** Open an "
+    "issue with your payment email — \"refund please\" is enough, and you do not need "
+    "to justify it.")
+    a("")
     return "\n".join(L)

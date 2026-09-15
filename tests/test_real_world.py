@@ -678,3 +678,35 @@ def test_rejected_key_message_does_not_misstate_the_check(tmp_path, capsys, monk
     # and prove the check really is tolerant
     key = "PDFZ1-O110FBF11EE4-69DEE505AB1993B2"
     assert verify_license(key) is verify_license("  " + key.lower() + "  ")
+
+
+def test_paid_report_carries_the_support_and_refund_route(tmp_path, monkeypatch):
+    """The report is the only artifact a buyer keeps.
+
+    The refund promise and the issue tracker live on the storefront and in the Stripe
+    confirmation -- pages a buyer may never open again. A deliverable that sends them
+    off to check pod READMEs and gives them no way back to the seller quietly makes a
+    refund harder to claim than it was advertised to be.
+    """
+    from podfreeze import audit as audit_mod
+    from podfreeze.enrich import Enrichment
+
+    proj = tmp_path / "App"
+    proj.mkdir()
+    (proj / "Podfile.lock").write_text(
+        "PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
+        "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
+    monkeypatch.setattr(audit_mod, "enrich", lambda names, workers=8: [
+        Enrichment(pod=n, latest_version="5.9.1", latest_published="2024-03-31",
+                   total_versions=101) for n in names])
+
+    md = audit_mod.render_markdown(audit_mod.run_audit(tmp_path), tmp_path)
+
+    assert "## If something here is wrong" in md, (
+        "the support section heading is gone, so the links are unfindable in a long report")
+    assert "github.com/ntoledo319/podfreeze/issues" in md, (
+        "the paid report has no route back to the seller")
+    assert "no argument and no time limit" in md, (
+        "the refund terms promised at checkout are absent from the deliverable")
+    assert "reproduce_findings.py" in md, (
+        "the report does not tell a buyer how to check the published claims")
