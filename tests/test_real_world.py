@@ -172,3 +172,39 @@ def test_observed_spec_repo_spellings(spelling, is_trunk):
     assert got is is_trunk, (
         f"{spelling!r}: classified trunk={got}, expected trunk={is_trunk}"
     )
+
+
+def test_pro_ranks_actively_published_first():
+    """--pro must agree with --audit on what to deal with first.
+
+    The audit report was corrected in v0.5.0 but --pro kept ranking stalest-first and
+    told buyers 'Actively-published pods are lower priority'. Two paid outputs giving
+    opposite advice is worse than either being wrong alone.
+    """
+    from podfreeze.enrich import Enrichment
+    from podfreeze.pro import _priority
+
+    live = Enrichment(pod="GoogleUtilities", latest_version="8.1.3",
+                      latest_published="2026-08-26", total_versions=77)
+    stale = Enrichment(pod="SDWebImage", latest_version="5.9.5",
+                       latest_published="2020-11-13", total_versions=100)
+
+    assert _priority(live)[0] < _priority(stale)[0], (
+        "an actively-published pod must rank ABOVE one static since 2020 — it is the "
+        "one losing a live release channel at the freeze"
+    )
+    assert "loses a live release channel" in _priority(live)[1]
+    assert "frozen already" in _priority(stale)[1]
+
+
+def test_pro_order_of_work_text_is_not_backwards():
+    """The prose must match the sort order it explains."""
+    from podfreeze.pro import render_pro
+    from podfreeze.analyse import analyse
+    from podfreeze.parser import parse
+
+    text = (FIXTURES / "quoted_subspec.lock").read_text(encoding="utf-8")
+    out = render_pro(analyse(parse(text)), licensed=True)
+    assert "Actively-published pods are lower priority" not in out, (
+        "--pro still tells buyers actively-published pods matter less"
+    )
