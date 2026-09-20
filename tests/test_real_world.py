@@ -646,6 +646,13 @@ def test_rejected_key_is_distinguishable_from_no_key(tmp_path, capsys, monkeypat
     lock.write_text("PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
                     "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
 
+    from podfreeze import licensing
+    from tests import minting
+
+    # This build ships no seller public key, so give the check one; otherwise every key
+    # is refused as "licensing not configured" and the two messages below cannot differ.
+    monkeypatch.setattr(licensing, "PUBLIC_KEY_HEX", minting.PUBLIC_HEX)
+
     monkeypatch.delenv("PODFREEZE_LICENSE", raising=False)
     main(["--pro", str(lock)])
     no_key = capsys.readouterr().out
@@ -663,21 +670,28 @@ def test_rejected_key_is_distinguishable_from_no_key(tmp_path, capsys, monkeypat
 
 def test_rejected_key_message_does_not_misstate_the_check(tmp_path, capsys, monkeypatch):
     """The key check normalises case and whitespace; the message must not claim otherwise."""
+    from podfreeze import licensing
     from podfreeze.cli import main
     from podfreeze.pro import verify_license
+    from tests import minting
+
+    monkeypatch.setattr(licensing, "PUBLIC_KEY_HEX", minting.PUBLIC_HEX)
 
     lock = tmp_path / "Podfile.lock"
     lock.write_text("PODS:\n  - Alamofire (5.8.1)\n\nDEPENDENCIES:\n  - Alamofire\n\n"
                     "SPEC REPOS:\n  trunk:\n    - Alamofire\n\nCOCOAPODS: 1.15.2\n")
-    monkeypatch.setenv("PODFREEZE_LICENSE", "PDFZ1-NOPE-NOPE")
+    monkeypatch.setenv("PODFREEZE_LICENSE", "PDFZ2-NOPE-NOPE")
     main(["--pro", str(lock)])
     out = capsys.readouterr().out
     assert "case-sensitive" not in out, (
         "the message claims case sensitivity the check does not enforce")
 
-    # and prove the check really is tolerant
-    key = "PDFZ1-O110FBF11EE4-69DEE505AB1993B2"
-    assert verify_license(key) is verify_license("  " + key.lower() + "  ")
+    # and prove the check really is tolerant -- with a key that is actually signed
+    key = minting.mint(tier="single")
+    straight = verify_license(key)
+    pasted = verify_license("  " + key.lower() + "  ")
+    assert straight is not None and straight == pasted, (
+        "a lower-cased or space-padded key stopped verifying")
 
 
 def test_paid_report_carries_the_support_and_refund_route(tmp_path, monkeypatch):

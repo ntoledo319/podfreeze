@@ -21,8 +21,8 @@
          padding:11px 22px;border:0;border-radius:6px;cursor:pointer;margin:10px 8px 0 0}
   button.alt{background:transparent;color:var(--fg);border:1px solid var(--line)}
   .priv{color:var(--ok);font-size:.85rem;margin-top:10px}
-  table{border-collapse:collapse;width:100%;font-size:.9rem;margin:1em 0}
-  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+  table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:.9rem;margin:1em 0}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;overflow-wrap:anywhere}
   th{background:var(--card)}
   .exposed{color:var(--acc);font-weight:600}
   .safe{color:var(--ok)}
@@ -44,6 +44,7 @@
 <p class="sub">Which of your pods can never receive another published version — including a security fix — after
 CocoaPods trunk goes read-only on <strong>2 December 2026</strong>?</p>
 
+<label for="in" style="display:block;margin-bottom:.4em;font-weight:600">Paste the contents of your <code>Podfile.lock</code></label>
 <textarea id="in" spellcheck="false" placeholder="Paste the contents of your Podfile.lock here…
 
 PODS:
@@ -62,7 +63,7 @@ COCOAPODS: 1.15.2"></textarea>
 <p class="priv">✓ Runs entirely in your browser. Nothing is uploaded, stored, or logged —
 this page has no server and no analytics.</p>
 
-<div id="out"></div>
+<div id="out" role="status" aria-live="polite"></div>
 
 <footer>
 Source: <a href="https://blog.cocoapods.org/CocoaPods-Specs-Repo/">CocoaPods Trunk

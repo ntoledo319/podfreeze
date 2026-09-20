@@ -150,11 +150,16 @@ $ podfreeze --pro
       SwiftPM          : Package.swift found at SDWebImage/SDWebImage
 ```
 
-| | |
-|---|---|
-| **Single project** — $29 | [Buy](https://buy.stripe.com/dRm8wP4nY8pi2l5aZe87K0r) |
-| **Team / unlimited projects + CI** — $199 | [Buy](https://buy.stripe.com/4gM9AT2fQdJC9Nx4AQ87K0s) |
-| **Organisation audit** — $499 | [Buy](https://buy.stripe.com/8x26oHbQqdJCe3Ngjy87K0t) |
+| Tier | Unlocks | |
+|---|---|---|
+| **Single project** — $29 | `--pro` on one project | [Buy](https://buy.stripe.com/dRm8wP4nY8pi2l5aZe87K0r) |
+| **Team / unlimited projects + CI** — $199 | `--pro` on any number of projects, and in CI | [Buy](https://buy.stripe.com/4gM9AT2fQdJC9Nx4AQ87K0s) |
+| **Organisation audit** — $499 | `--pro`, plus `--audit` across a whole tree | [Buy](https://buy.stripe.com/8x26oHbQqdJCe3Ngjy87K0t) |
+
+The tier is signed into the key, so `--audit` requires an organisation key and refuses a
+cheaper one. **Single and Team unlock the same command**; what differs between them is how
+many projects and developers the licence covers, which is a licensing difference, not a
+technical one. That is said here rather than left to be discovered after payment.
 
 ### Organisation audit — `--audit`
 
@@ -183,8 +188,32 @@ invented effort estimates, no severity scores, and no risk theatre. Files that c
 parsed are **listed in the report**, never silently skipped — a skipped file and a clean
 file must not look the same.
 
-Licence keys verify **offline**. No phone-home, no telemetry, no account. Works
-air-gapped.
+### How licence keys work, and what the check is worth
+
+A key looks like `PDFZ2-<payload>-<signature>`. The payload says which tier it is and when
+it expires; the signature is **Ed25519** over exactly those bytes. Your copy of podfreeze
+ships the seller's *public* key and verifies the signature with it.
+
+That means:
+
+- **Offline.** No phone-home, no telemetry, no account, no activation server. Works
+  air-gapped, and podfreeze never learns that you ran it.
+- **No secret on your machine.** Verification needs public data only. Earlier builds checked
+  the key with an HMAC keyed with a secret only the seller had — so on every buyer's machine
+  it silently degraded to checking that the key was *long enough*, and any string shaped
+  like a key passed. That is fixed: the signature is now actually checked, and a key that
+  was not signed by the seller is refused.
+- **The tier cannot be edited.** It is inside the signed bytes, so changing `single` to
+  `org` invalidates the signature.
+- **Keys are long**, around 160 characters, because a real signature is 64 bytes. Case and
+  surrounding whitespace do not matter; paste the whole thing.
+
+**And the honest part.** podfreeze is MIT licensed and its source is public. Anyone willing
+to edit `licensing.py` can delete the check — a signature makes a *forged* key impossible,
+it cannot make a *patched copy* impossible, and no client-side check in an open-source
+package ever can. The licence is enforced against mistakes and casual sharing, and beyond
+that it runs on trust. If that trade is not acceptable to you, the free tier is complete,
+un-crippled and not time-limited, and you are welcome to stay on it.
 
 ### What Pro deliberately does NOT include
 
@@ -206,6 +235,9 @@ Any tool claiming per-pod CVE scanning for CocoaPods is worth questioning closel
   "found nothing" and "couldn't read the file" must not look identical.
 - It reports exposure. It does not migrate anything for you.
 - It does not phone home, and it has no telemetry.
+- The Pro licence check is a signature, not a copy-protection system. The package is MIT
+  licensed and the check is a few lines of readable Python; see
+  [How licence keys work](#how-licence-keys-work-and-what-the-check-is-worth).
 
 ## Tests
 
@@ -217,6 +249,43 @@ python -m pytest tests -q
 The suite includes a **census test** pinning the exact expected finding set across every
 input form at once — so a change that silently detects *less* fails loudly, instead of
 producing a smaller report that still looks credible.
+
+## Selling Pro (seller only)
+
+Keys are signed offline with a private key that never enters this repository and never
+reaches a buyer. `podfreeze/_pubkey.py` carries only the public half.
+
+**Once, ever** — create the keypair. A build whose `_pubkey.py` is empty **refuses every
+licence key, including a valid one**, so this has to exist before a single sale can be
+fulfilled:
+
+```
+python tools/mint_license.py keygen --out ~/.podfreeze/licence-key --install
+```
+
+`keygen` writes the private key outside the repository at mode 0600 and never prints it;
+`--install` writes only the public half into `podfreeze/_pubkey.py`. Commit that file.
+Keep the private key backed up: without it no *new* key can be minted, though every key
+already issued keeps working, because verification only ever needed the public half.
+
+**Per sale** — point the tool at the private key once per shell, then one command per
+payment:
+
+```
+export PODFREEZE_LICENCE_KEY_FILE=~/.podfreeze/licence-key
+
+python tools/mint_license.py fulfil --tier single --to buyer@example.com   # $29
+python tools/mint_license.py fulfil --tier team   --to buyer@example.com   # $199
+python tools/mint_license.py fulfil --tier org    --to buyer@example.com   # $499
+```
+
+`fulfil` mints the key, verifies it against the public key this build actually ships —
+refusing to print anything if the two halves do not match, so a mismatch is found here
+rather than by the buyer — and prints the delivery email ready to send. Tier comes from
+what they paid for; the Stripe receipt has the address.
+
+`mint` prints a bare key with no covering message, and `inspect <key>` says what a key
+claims and whether this build accepts it.
 
 ## License
 

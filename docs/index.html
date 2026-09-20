@@ -25,8 +25,8 @@
   code{background:var(--card);padding:.15em .4em;border-radius:4px;font-size:.9em}
   pre code{background:none;padding:0}
   .date{color:var(--acc);font-weight:600}
-  table{border-collapse:collapse;width:100%;font-size:.9rem;margin:1em 0}
-  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+  table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:.9rem;margin:1em 0}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;overflow-wrap:anywhere}
   th{background:var(--card)}
   .btn{display:inline-block;background:var(--acc);color:#0d1117;font-weight:600;
        padding:11px 20px;border-radius:6px;text-decoration:none;margin:6px 8px 6px 0}
@@ -36,6 +36,15 @@
   a{color:#58a6ff}
   footer{margin-top:3.5em;padding-top:1.4em;border-top:1px solid var(--line);
          color:var(--mut);font-size:.85rem}
+  @media (max-width:480px){
+    /* The install line is one unbreakable git+https URL. overflow-x:auto alone
+       hid its second half off the right edge of the card with no visible
+       affordance, so the command could not be read on a phone. */
+    pre{white-space:pre-wrap;overflow-wrap:anywhere}
+    /* Inline-block buttons wrapped to their own content width and stacked as a
+       ragged staircase. Full width gives the phone stack one edge. */
+    .btn{display:block;width:100%;text-align:center;margin:8px 0}
+  }
 </style>
 <script type="application/ld+json">
 {
@@ -49,9 +58,10 @@
   "codeRepository": "https://github.com/ntoledo319/podfreeze",
   "license": "https://opensource.org/licenses/MIT",
   "offers": [
-    {"@type": "Offer", "name": "CLI", "price": "0", "priceCurrency": "USD"},
-    {"@type": "Offer", "name": "Pro licence", "price": "199", "priceCurrency": "USD"},
-    {"@type": "Offer", "name": "Team licence", "price": "499", "priceCurrency": "USD"}
+    {"@type": "Offer", "name": "podfreeze CLI (free)", "price": "0", "priceCurrency": "USD", "url": "https://github.com/ntoledo319/podfreeze"},
+    {"@type": "Offer", "name": "Single project", "price": "29", "priceCurrency": "USD", "url": "https://ntoledo319.github.io/podfreeze/#pro"},
+    {"@type": "Offer", "name": "Team", "price": "199", "priceCurrency": "USD", "url": "https://ntoledo319.github.io/podfreeze/#pro"},
+    {"@type": "Offer", "name": "Organisation audit", "price": "499", "priceCurrency": "USD", "url": "https://ntoledo319.github.io/podfreeze/#pro"}
   ]
 }
 </script>
@@ -67,16 +77,19 @@ published version — including a security fix — after <span class="date">2 De
 <pre><code>pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.5"
 cd your-ios-project
 podfreeze</code></pre>
+<p style="color:#8b949e;font-size:.9rem;margin-top:-.6em">Requires <code>git</code> on your machine.
+podfreeze is not on PyPI, so a plain <code>pip install podfreeze</code> will not find it —
+use the line above exactly as written.</p>
 
 <p>No signup. No account. The free scan is fully offline — nothing leaves your machine.
 (Pro looks up the public CocoaPods trunk API for the pod <em>names</em> it found;
 details below.) Open source, MIT.</p>
 
-<a class="btn alt" href="findings.html">What 83 real projects show →</a>
 <a class="btn" href="check.html">Check your Podfile.lock now →</a>
+<p style="color:#8b949e;font-size:.9rem;margin:.6em 0 1.2em">No install needed — the checker runs entirely in your browser and nothing is uploaded.</p>
+<a class="btn alt" href="findings.html">What 83 real projects show →</a>
 <a class="btn alt" href="https://github.com/ntoledo319/podfreeze">View on GitHub</a>
 <a class="btn alt" href="#pro">Pro &amp; team licences</a>
-<p style="color:#8b949e;font-size:.9rem;margin-top:1em">No install needed — the checker runs entirely in your browser and nothing is uploaded.</p>
 
 <h2>Your build does not break</h2>
 
@@ -147,12 +160,16 @@ reasonably want to know first.</p>
 
 <table>
 <tr><th>Question</th><th>Answer</th></tr>
-<tr><td><strong>How is it delivered?</strong></td><td>Your licence key appears on the
-confirmation page immediately after payment, and in your Stripe receipt. Nothing to wait
-for, no email required.</td></tr>
-<tr><td><strong>What if it doesn't work?</strong></td><td>Open an issue at
+<tr><td><strong>How is it delivered?</strong></td><td>By email, to the address on your
+Stripe receipt. Each key is signed and issued individually after payment, so it is not
+shown on the confirmation page. If it has not arrived, or you want it sent to a different
+address, email <a href="mailto:hello@toledotechnologies.com">hello@toledotechnologies.com</a>
+with your receipt and it will be issued.</td></tr>
+<tr><td><strong>What if it doesn't work?</strong></td><td>Email
+<a href="mailto:hello@toledotechnologies.com">hello@toledotechnologies.com</a>, or open an
+issue at
 <a href="https://github.com/ntoledo319/podfreeze/issues">github.com/ntoledo319/podfreeze/issues</a>
-and say you bought a licence. Full refund, no argument, no time limit.</td></tr>
+if you would rather it were public. Full refund, no argument, no time limit.</td></tr>
 <tr><td><strong>Can I try before paying?</strong></td><td>Yes — the
 <a href="check.html">browser checker</a> and the
 <a href="https://github.com/ntoledo319/podfreeze">CLI</a> are free, MIT-licensed, and

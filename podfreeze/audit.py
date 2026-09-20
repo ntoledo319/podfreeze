@@ -369,7 +369,7 @@ def render_markdown(audit: Audit, root: Path) -> str:
       "result.")
     a("")
     # This report is the only artifact a buyer keeps. The refund promise and the support
-    # route live on the storefront and in the Stripe confirmation -- pages they may never
+    # route live on the storefront and in the key email -- pages they may never
     # open again. A deliverable that sends you off to check pod READMEs and gives you no
     # way back to the seller is a deliverable that quietly makes refunds harder to claim.
     a("## If something here is wrong")
@@ -378,7 +378,8 @@ def render_markdown(audit: Audit, root: Path) -> str:
     "insulated and you believe it is exposed, that is the most valuable thing you can "
     "report — one such case has already been found and fixed.")
     a("")
-    a("- Report it: <https://github.com/ntoledo319/podfreeze/issues>")
+    a("- Report it: <hello@toledotechnologies.com>, or "
+      "<https://github.com/ntoledo319/podfreeze/issues>")
     a("- Source and free CLI: <https://github.com/ntoledo319/podfreeze>")
     a("- Reproduce the published findings yourself: "
     "<https://github.com/ntoledo319/podfreeze/blob/main/reproduce_findings.py>")

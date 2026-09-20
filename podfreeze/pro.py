@@ -3,47 +3,85 @@
 The free tool is complete and useful on its own: it tells you exactly which pods are
 exposed. Pro answers the next question -- what do I do about each one, and in what
 order -- using live data from the CocoaPods trunk API and SwiftPM availability probes.
+
+The licence check itself lives in :mod:`podfreeze.licensing`. It is an Ed25519 signature
+verified against a public key shipped in this package: offline, no phone-home, and -- the
+part that was broken before this change -- no seller secret on the buyer's machine.
 """
 from __future__ import annotations
 
 import datetime as _dt
-import hashlib
-import hmac
-import os
 
 from .analyse import FREEZE_DATE, Report
 from .enrich import Enrichment, enrich
+from .licensing import (BAD_SIGNATURE, EXPIRED, MALFORMED, NO_KEY, OK,  # noqa: F401
+                        TIER_TOO_LOW, UNCONFIGURED, Licence, check_license,
+                        verify_license)
 
-# Licence keys are signed with this public tag + a secret held only by the seller.
-# Verification is offline: no phone-home, no telemetry, works air-gapped.
-_LICENSE_PREFIX = "PDFZ1"
+# Retained as a name because the CLI and tests import it from here; the check is in
+# licensing.py so that the signature logic and the report rendering are not one file.
+_LICENSE_PREFIX = "PDFZ2"
+
+SUPPORT_URL = "https://github.com/ntoledo319/podfreeze/issues"
+PRO_URL = "https://github.com/ntoledo319/podfreeze#pro"
+# A buyer chasing a licence key should not have to describe their purchase in a public
+# issue tracker to get it. This inbox is monitored; the issue tracker stays as the public
+# alternative for anyone who prefers one.
+SUPPORT_EMAIL = "hello@toledotechnologies.com"
 
 
-def verify_license(key: str | None, secret: str | None = None) -> bool:
-    """Offline licence check. Format: PDFZ1-<payload>-<sig>.
+def licence_problem_lines(reason: str, licence: Licence | None = None,
+                          needed: str = "single") -> list[str]:
+    """The buyer-facing explanation for a refused key, one line per list entry.
 
-    Deliberately simple and offline. This is a paywall for honest buyers, not DRM;
-    it does not phone home and stores nothing.
-
-    Tolerant of how a real buyer actually pastes a key: surrounding whitespace, and
-    case. A paying customer locked out by a lowercased key is a refund and a bad
-    review, and the key carries no secrecy that case-sensitivity would protect.
+    Each refusal reason gets its own words. A buyer who mistyped a key, a buyer holding a
+    cheaper tier, and a buyer whose key expired are three different conversations, and
+    showing all three the same upsell is how a paying customer concludes they were never
+    sent a key at all.
     """
-    key = (key or os.environ.get("PODFREEZE_LICENSE") or "").strip().upper()
-    secret = secret or os.environ.get("PODFREEZE_SECRET") or ""
-    if not key or not key.startswith(_LICENSE_PREFIX):
-        return False
-    parts = key.split("-")
-    if len(parts) != 3:
-        return False
-    _, payload, sig = parts
-    if not secret:
-        # No secret configured locally: accept a well-formed key. The seller signs keys;
-        # buyers never need the secret. Structure check only.
-        return len(payload) >= 8 and len(sig) >= 8
-    expect = hmac.new(secret.encode(), payload.encode(),
-                      hashlib.sha256).hexdigest()[:16].upper()
-    return hmac.compare_digest(expect, sig)
+    from .licensing import TIER_LABELS
+    if reason == UNCONFIGURED:
+        return [
+            "  LICENSING IS NOT CONFIGURED IN THIS BUILD",
+            "",
+            "  This copy of podfreeze ships no licence public key, so it cannot verify",
+            "  any key -- including a valid one. The free scan above is unaffected.",
+            "",
+            f"  Please report this build: {SUPPORT_EMAIL}",
+            f"  or {SUPPORT_URL}",
+        ]
+    if reason == EXPIRED and licence is not None:
+        return [
+            "  LICENCE KEY EXPIRED",
+            "",
+            f"  This key was valid until {licence.expires}.",
+            "",
+            f"  If that is wrong, say so and it will be fixed or refunded:",
+            f"  {SUPPORT_EMAIL}, or {SUPPORT_URL}",
+        ]
+    if reason == TIER_TOO_LOW and licence is not None:
+        return [
+            "  THIS COMMAND NEEDS A HIGHER TIER",
+            "",
+            f"  Your key is a {licence.label} licence. This command needs the "
+            f"{TIER_LABELS.get(needed, needed)} licence.",
+            "",
+            f"  Tiers and prices: {PRO_URL}",
+        ]
+    return [
+        "  LICENCE KEY NOT RECOGNISED",
+        "",
+        "  A key was supplied but its signature did not verify. Keys look like",
+        "    PDFZ2-<letters and digits>-<letters and digits>",
+        "  and are emailed to you after payment, to the address on your Stripe",
+        "  receipt. Check for a missing or dropped character -- the whole key is signed,",
+        "  so one wrong character is enough. Case and surrounding whitespace do not",
+        "  matter; the check normalises both.",
+        "",
+        "  If it still fails, or no key ever reached you, it will be re-issued or",
+        "  refunded:",
+        f"  {SUPPORT_EMAIL}, or {SUPPORT_URL}",
+    ]
 
 
 def _age_days(date_str: str | None) -> int | None:
@@ -78,26 +116,25 @@ def _priority(e: Enrichment) -> tuple[int, str]:
     return (3, "could not determine")
 
 
-def render_pro(rep: Report, licensed: bool, key_supplied: bool = False) -> str:
+def render_pro(rep: Report, licensed: bool, key_supplied: bool = False,
+               reason: str | None = None, licence: Licence | None = None) -> str:
+    """Render the Pro section.
+
+    ``reason`` and ``licence`` come from :func:`podfreeze.licensing.check_license` and let
+    this say *why* a key was refused. They are optional so the older two-argument call
+    still works.
+    """
     L: list[str] = []
     a = L.append
     exposed = rep.exposed
     if not licensed:
         a("")
-        if key_supplied:
+        if key_supplied or reason in (UNCONFIGURED, EXPIRED, TIER_TOO_LOW):
             # A buyer who typos their key was shown the same upsell as someone who
             # never bought -- so the natural conclusion is "I was never sent a key",
             # not "I mistyped it". Say which it is.
-            a("  LICENCE KEY NOT RECOGNISED")
-            a("")
-            a("  A key was supplied but did not verify. Keys look like")
-            a("    PDFZ1-XXXXXXXXXXXX-XXXXXXXXXXXXXXXX")
-            a("  and are in your Stripe confirmation and receipt. Check for a missing")
-            a("  character or a stray space. Case and surrounding whitespace do not")
-            a("  matter -- the check normalises both.")
-            a("")
-            a("  If it still fails, open an issue and it will be fixed or refunded:")
-            a("  https://github.com/ntoledo319/podfreeze/issues")
+            for line in licence_problem_lines(reason or BAD_SIGNATURE, licence):
+                a(line)
             a("")
             return "\n".join(L)
         a("  PRO — migration plan for the pods above")

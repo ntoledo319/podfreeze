@@ -227,15 +227,28 @@ def test_crlf_and_bom_and_trailing_sections():
 
 # --- Buyer-facing failure modes (loop #14) ---------------------------------
 def test_licence_key_tolerates_real_paste_behaviour():
-    """A paying buyer must not be locked out by whitespace or case."""
+    """A paying buyer must not be locked out by whitespace or case.
+
+    The key here is genuinely signed by a keypair this test session generated, because a
+    hand-written string is exactly what the old check could not tell from a real key.
+    """
     from podfreeze.pro import verify_license
-    good = "PDFZ1-O110FBF11EE4-69DEE505AB1993B2"
-    assert verify_license(good)
-    assert verify_license(f"  {good}  "), "stray whitespace locked out a paying buyer"
-    assert verify_license(good.lower()), "lowercase key locked out a paying buyer"
-    assert not verify_license("garbage")
-    assert not verify_license("")
-    assert not verify_license("PDFZ1-short-x")
+    from tests import minting
+
+    good = minting.mint(tier="single")
+    pub = minting.PUBLIC_HEX
+    assert verify_license(good, public_key=pub)
+    assert verify_license(f"  {good}  ", public_key=pub), (
+        "stray whitespace locked out a paying buyer")
+    assert verify_license(good.lower(), public_key=pub), (
+        "lowercase key locked out a paying buyer")
+    assert not verify_license("garbage", public_key=pub)
+    assert not verify_license("", public_key=pub)
+    assert not verify_license("PDFZ2-short-x", public_key=pub)
+    # The three strings that verified on every buyer's machine before this change.
+    for forged in ("PDFZ1-AAAAAAAA-BBBBBBBB", "PDFZ1-00000000-00000000",
+                   "PDFZ1-NOTAREALKEY-NOTAREALSIG"):
+        assert not verify_license(forged, public_key=pub), f"{forged} still verifies"
 
 
 def test_network_failure_is_not_reported_as_a_finding(monkeypatch):

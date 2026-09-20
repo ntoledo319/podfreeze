@@ -25,7 +25,8 @@ from pathlib import Path
 from .analyse import (FREEZE_DATE, TEST_RUN, Report, analyse, freeze_phrasing,
                       vendor_cutoff)
 from .parser import ParseError, parse
-from .pro import render_pro, verify_license
+from .licensing import NO_KEY, OK, TIER_LABELS, check_license
+from .pro import licence_problem_lines, render_pro
 
 from . import __version__
 
@@ -164,10 +165,23 @@ def main(argv: list[str] | None = None) -> int:
 
         from .audit import render_markdown, run_audit
 
-        if not verify_license(args.license_key):
-            print("podfreeze: --audit requires a licence key.", file=sys.stderr)
-            print("  Set PODFREEZE_LICENSE or pass --license.", file=sys.stderr)
-            print("  https://github.com/ntoledo319/podfreeze#pro", file=sys.stderr)
+        # --audit is the organisation deliverable. It requires the organisation tier,
+        # and asks for it by name. Previously this call and the --pro call below were
+        # the same call with the same argument, so a single-project key opened both.
+        licence, reason = check_license(args.license_key, need="org")
+        if reason != OK:
+            if reason == NO_KEY:
+                print("podfreeze: --audit requires an organisation licence key.",
+                      file=sys.stderr)
+                print("  Set PODFREEZE_LICENSE or pass --license.", file=sys.stderr)
+                print("  https://github.com/ntoledo319/podfreeze#pro", file=sys.stderr)
+            else:
+                told = [ln.strip() for ln in
+                        licence_problem_lines(reason, licence, needed="org")]
+                told = [ln for ln in told if ln]
+                print(f"podfreeze: {told[0]}", file=sys.stderr)
+                for ln in told[1:]:
+                    print(f"  {ln}", file=sys.stderr)
             return 4
         root = _P(args.audit)
         if not root.is_dir():
@@ -184,6 +198,7 @@ def main(argv: list[str] | None = None) -> int:
         out.write_text(md, encoding="utf-8")
         exposed_projects = [p for p in audit_result.ok_projects if p.exposed]
         print(f"podfreeze audit: scanned {n_locks} Podfile.lock file(s) under {root}")
+        print(f"  licence tier: {TIER_LABELS[licence.tier]}")
         print(f"  {len(exposed_projects)} project(s) with trunk exposure")
         print(f"  {len(audit_result.pod_usage())} distinct exposed pod(s)")
         if audit_result.failed_projects:
@@ -247,12 +262,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.pro:
             # Pass whether a key was actually supplied, so a rejected key produces
             # "not recognised" rather than the same upsell a non-buyer sees.
-            # verify_license also reads PODFREEZE_LICENSE, so checking only the flag
+            # check_license also reads PODFREEZE_LICENSE, so checking only the flag
             # made "supplied" always False for env-var users -- the common case.
             supplied = bool((args.license_key
                              or os.environ.get("PODFREEZE_LICENSE") or "").strip())
-            print(render_pro(rep, verify_license(args.license_key),
-                             key_supplied=supplied))
+            licence, reason = check_license(args.license_key, need="single")
+            print(render_pro(rep, reason == OK, key_supplied=supplied,
+                             reason=reason, licence=licence))
         elif rep.exposed:
             print(render_pro(rep, licensed=False))
     return 0

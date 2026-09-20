@@ -8,19 +8,25 @@ body:
       value: |
         **Refunds are given on request, with no argument and no time limit.** You do not
         need to justify it and you do not need to fill this in completely — "refund
-        please" with your payment email is enough.
+        please" is enough.
 
         If your key is not working, the details below usually make it solvable in one
         reply rather than three.
 
+        **This issue will be public.** Anything you type here is visible to anyone
+        and stays visible. The checkout email below is optional — leave it blank if
+        you would rather not publish it.
+
   - type: input
     id: email
     attributes:
-      label: Email used at checkout
-      description: Needed to find the payment. Nothing else is stored or used.
-      placeholder: you@example.com
+      label: Email used at checkout (optional — this issue is public)
+      description: >-
+        Only needed to find the payment, and this issue is PUBLIC. Leave it blank if
+        you would rather not publish it.
+      placeholder: leave blank if you would rather not publish it
     validations:
-      required: true
+      required: false
 
   - type: dropdown
     id: want
@@ -44,7 +50,7 @@ body:
         $ podfreeze --pro Podfile.lock
         podfreeze: licence key not recognised
 
-        Key starts: PDFZ1-O1...
+        Key starts: PDFZ2-OB...
       render: shell
 
   - type: input
