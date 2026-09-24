@@ -41,6 +41,7 @@ _REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO))
 
 from podfreeze import _ed25519                      # noqa: E402
+from podfreeze import __version__                    # noqa: E402
 from podfreeze.licensing import (TIER_LABELS, TIERS, build_payload,  # noqa: E402
                                  check_license, encode_key)
 
@@ -140,6 +141,10 @@ Thank you -- here is your podfreeze {label} licence key.
 
   {key}
 
+Install or upgrade to the release that verifies this signed key (Python 3.9+):
+
+  python3 -m pip install --upgrade "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v{version}"
+
 Use it either way:
 
   podfreeze {command} --license {key}
@@ -149,7 +154,7 @@ or set it once and forget it:
   export PODFREEZE_LICENSE={key}
 
 It is verified offline against a public key shipped inside podfreeze: no account, no
-activation, no phone-home, and it does not expire. Case and surrounding whitespace do not
+activation, no phone-home. {expiry_sentence} Case and surrounding whitespace do not
 matter, but every character counts -- the whole key is signed, so one dropped character
 will be refused.
 
@@ -190,8 +195,11 @@ def cmd_fulfil(args: argparse.Namespace) -> int:
             f"The public key in podfreeze/_pubkey.py does not match this private key. "
             f"Do not send anything until that is resolved.")
 
+    expiry_sentence = ("It does not expire." if args.expires == "never"
+                       else f"It is valid through {args.expires} (inclusive).")
     print(_DELIVERY.format(to=args.to, label=TIER_LABELS[args.tier], key=key,
-                           command=_COMMANDS[args.tier]))
+                           command=_COMMANDS[args.tier], version=__version__,
+                           expiry_sentence=expiry_sentence))
     print(f"--- minted and verified: tier={args.tier} expires={args.expires} "
           f"nonce={nonce} ---", file=sys.stderr)
     return 0

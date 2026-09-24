@@ -449,6 +449,38 @@ def test_fulfil_refuses_to_print_a_key_the_shipped_build_would_reject(tmp_path):
     assert "does not match" in proc.stderr
 
 
+@pytest.mark.parametrize("tier", ["single", "team", "org"])
+@pytest.mark.parametrize("expires", ["never", "2099-12-31"])
+def test_fulfil_prepares_compatible_install_and_verifiable_key(
+        tmp_path, monkeypatch, capsys, tier, expires):
+    """The complete prepared email must lead to the signed-key release it needs.
+
+    The old delivery text gave a PDFZ2 key but no install step, while the storefront
+    still installed v0.8.5, which only understood PDFZ1. No email is sent here.
+    """
+    import argparse
+    import re
+    from podfreeze import __version__
+    from tools import mint_license
+
+    key_file = tmp_path / "test-only-key"
+    key_file.write_text(minting.SEED.hex())
+    monkeypatch.setattr(lic, "PUBLIC_KEY_HEX", minting.PUBLIC_HEX)
+    args = argparse.Namespace(tier=tier, expires=expires, nonce="0123abcd",
+                              to="buyer@example.invalid", key_file=str(key_file))
+    assert mint_license.cmd_fulfil(args) == 0
+    message = capsys.readouterr().out
+    assert f"podfreeze@v{__version__}" in message
+    assert "python3 -m pip install --upgrade" in message
+    keys = re.findall(r"PDFZ2-[A-Z2-7]+-[A-Z2-7]+", message)
+    assert len(keys) == 3 and len(set(keys)) == 1
+    licence, reason = lic.check_license(keys[0], need=tier)
+    assert reason == lic.OK and licence.tier == tier and licence.expires == expires
+    assert ("It does not expire." in message) == (expires == "never")
+    if expires != "never":
+        assert f"valid through {expires} (inclusive)" in message
+
+
 # --- what the buyer is told about delivery ----------------------------------
 # The storefront said the key appeared on the Stripe confirmation page. Nothing ever put
 # it there: keys are minted by hand and emailed. A buyer who believes the page will show

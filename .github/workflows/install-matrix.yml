@@ -49,6 +49,16 @@ jobs:
           echo "$V"
           test "$V" = "podfreeze ${{ steps.ver.outputs.bare }}"
 
+      - name: Installed package must support signed licences
+        run: |
+          python - <<'PY'
+          from podfreeze.licensing import check_license, _public_key_bytes
+          assert _public_key_bytes(None) is not None, "installed package has no usable seller public key"
+          licence, reason = check_license("PDFZ1-AAAAAAAA-BBBBBBBB")
+          assert licence is None and reason != "ok", "installed package still accepts fabricated legacy keys"
+          print("Installed signed-licence gate verified")
+          PY
+
       - name: Real scan must classify correctly
         run: |
           cat > Podfile.lock <<'EOF'
