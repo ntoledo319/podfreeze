@@ -161,6 +161,15 @@ cheaper one. **Single and Team unlock the same command**; what differs between t
 many projects and developers the licence covers, which is a licensing difference, not a
 technical one. That is said here rather than left to be discovered after payment.
 
+### After payment
+
+Your licence key is signed and issued individually by email to the address on your
+Stripe receipt. It is not shown on the payment confirmation page. If it has not
+arrived, email [hello@toledotechnologies.com](mailto:hello@toledotechnologies.com)
+with your receipt so the order can be checked and the key issued. See the
+[buyer information](https://ntoledo319.github.io/podfreeze/#pro) for the existing
+support and refund terms.
+
 ### Organisation audit — `--audit`
 
 For a codebase with more than one app. Scans **every** `Podfile.lock` under a directory
