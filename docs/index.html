@@ -74,7 +74,7 @@
 <p class="sub">Find out which of your CocoaPods dependencies can never receive another
 published version — including a security fix — after <span class="date">2 December 2026</span>.</p>
 
-<pre><code>pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.6"
+<pre><code>pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.7"
 cd your-ios-project
 podfreeze</code></pre>
 <p style="color:#8b949e;font-size:.9rem;margin-top:-.6em">Requires <code>git</code> on your machine.
@@ -128,17 +128,18 @@ raises false alarms against exactly the teams who already did the right thing.</
 
 <p>The free tool tells you <strong>which</strong> pods are exposed. Pro tells you
 <strong>what to do about each one, and in what order</strong>, using live data from the
-CocoaPods trunk API — the real last-published date for every pod, how long it has been
-static, and whether a <code>Package.swift</code> exists to migrate to.</p>
+CocoaPods trunk API — the most recent publication date when it can be established,
+elapsed time, and whether a <code>Package.swift</code> can be found for review.</p>
 
-<table>
-<tr><th>Pod</th><th>Last published</th><th>Static for</th><th>SwiftPM target</th></tr>
-<tr><td><code>SDWebImage</code></td><td>5.9.5 (2020-11-13)</td><td>5.8 years</td><td>yes</td></tr>
-<tr><td><code>Realm</code></td><td>5.5.1 (2021-03-18)</td><td>5.5 years</td><td>not at conventional path</td></tr>
-<tr><td><code>Alamofire</code></td><td>5.9.1 (2024-03-31)</td><td>2.5 years</td><td>yes</td></tr>
-</table>
+<p>The latest publication is selected by its complete timestamp, not by its position
+in the API response or the largest version number. Missing or invalid dates and
+ambiguous latest publications remain unknown. Recency helps order investigation; it
+does not prove security or that an old dependency can safely be ignored.</p>
 
-<p>Those are real figures from the trunk API, not examples.</p>
+<p><strong>2 October 2026 correction:</strong> our previous release-date examples and
+study activity conclusions used an order-dependent selector and are withdrawn.
+<a href="corrections/2026-10-02.html">Read the correction and preserved provenance</a>.
+The study's lockfile-based exposure counts are separate from those publication dates.</p>
 
 <a class="btn" href="https://buy.stripe.com/dRm8wP4nY8pi2l5aZe87K0r">Single project — $29</a>
 <a class="btn" href="https://buy.stripe.com/4gM9AT2fQdJC9Nx4AQ87K0s">Team — $199</a>
@@ -146,9 +147,9 @@ static, and whether a <code>Package.swift</code> exists to migrate to.</p>
 
 <p>The organisation audit scans <em>every</em> <code>Podfile.lock</code> across your
 codebase and writes a dated migration report with a blast-radius table: which of your
-apps each dying pod appears in, ranked by what you actually lose at the freeze —
-the pods still shipping releases first, since a pod static since 2022 is already frozen
-in practice.</p>
+apps each exposed pod appears in. Known recent publication observations are ordered
+first; unknown observations remain explicit. Publication recency is a planning signal,
+not a conclusion about maintenance quality or security.</p>
 
 <p>Licence keys verify <strong>offline</strong>. No phone-home, no telemetry, no account.
 Works air-gapped.</p>

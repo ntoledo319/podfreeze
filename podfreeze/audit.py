@@ -168,21 +168,17 @@ def render_markdown(audit: Audit, root: Path) -> str:
     a(f"| Projects with trunk exposure | {len(exposed_projects)} |")
     a(f"| Distinct exposed pods | {len(usage)} |")
 
-    # Triage, not just a count. On a real 12-project tree this report lists 81 exposed
-    # pods, 54% of which have been static for 3+ years -- housekeeping, not risk. A buyer
-    # reading 81 undifferentiated rows has a wall, not a plan. Say how many actually
-    # change anything, and name the first one.
     live_pods, aging, frozen = [], [], []
     for pod in usage:
         e = audit.enrichment.get(pod)
-        yrs = _age_years(e.latest_published) if e else None
+        yrs = _age_years(e.latest_published) if e and not e.error else None
         if yrs is None:
             continue
         (live_pods if yrs <= 1 else aging if yrs <= 3 else frozen).append((pod, yrs))
     if live_pods or aging or frozen:
         a(f"| — still publishing (lose a live channel) | **{len(live_pods)}** |")
         a(f"| — static 1–3 years | {len(aging)} |")
-        a(f"| — static 3+ years (already frozen in practice) | {len(frozen)} |")
+        a(f"| — no observed publication for 3+ years | {len(frozen)} |")
     elif usage:
         # Every publication lookup failed. The triage rows are correctly omitted -- but
         # omitting them silently leaves a buyer wondering where the breakdown went, or
@@ -229,18 +225,22 @@ def render_markdown(audit: Audit, root: Path) -> str:
     # same failure as reporting a timeout as "not found": a confident frame around
     # missing data.
     if not (live_pods or aging or frozen) and usage:
-        a("**Not ranked — publication dates were unavailable for every pod.** The trunk "
-          "API could not be reached, so this is the exposed list in arbitrary order, not "
+        a("**Not ranked — publication dates were unavailable for every pod.** The lookup "
+          "did not establish reliable publication metadata, so this is the exposed list in arbitrary order, not "
           "a priority order. Re-run when the lookup succeeds to get the ranking you "
           "paid for.")
         a("")
     else:
         a("Ranked by **what you actually lose** at the freeze. A pod still publishing "
           "regularly has a live update channel — including security fixes — that the "
-          "freeze takes away, so it is the real exposure. A pod that has not published "
-          "in years is already frozen in practice; the December date only formalises it, "
-          "and migrating it is housekeeping rather than risk. Blast radius is the number "
+          "freeze takes away. Recency is a planning signal, not proof of maintenance "
+          "quality or security. An old or unknown date does not establish low risk. "
+          "Blast radius is the number "
           "of your projects affected.")
+        a("")
+    if any(not e or e.error or _age_years(e.latest_published) is None
+           for e in (audit.enrichment.get(pod) for pod in usage)):
+        a("Unknown publication observations do not establish inactivity or low priority.")
         a("")
     # Name the starting point. A ranked list is only a plan if it says where to stop.
     if live_pods:
@@ -249,8 +249,8 @@ def render_markdown(audit: Audit, root: Path) -> str:
         a(f"**Start with the {len(live_pods)} pod(s) still publishing:** {names}{more}. "
           f"Those are the ones whose maintainers are actively shipping — including, "
           f"potentially, a security fix that would no longer reach you. The remaining "
-          f"{len(aging) + len(frozen)} have been static for over a year and can be "
-          f"migrated on an ordinary schedule.")
+          f"{len(aging) + len(frozen)} have no observed publication within a year; "
+          f"review their maintenance and your usage before deciding when to migrate.")
         a("")
 
     a("| Pod | Last published | Static for | Your projects affected | SwiftPM target |")
@@ -259,13 +259,11 @@ def render_markdown(audit: Audit, root: Path) -> str:
     def sort_key(pod: str):
         """Most-recently-published first: those lose a live channel at the freeze.
 
-        Sorting stalest-first was backwards. A pod last published in 2019 loses
-        nothing on 2 December -- nobody was shipping fixes for it anyway. A pod that
-        published last month loses a channel its maintainers are actively using.
-        Vendor-cutoff pods rank above everything: their deadline is earlier.
+        Recency is a planning signal, not a security or maintenance verdict.
+        Vendor-cutoff pods rank above everything because their deadline is earlier.
         """
         e = audit.enrichment.get(pod)
-        yrs = _age_years(e.latest_published) if e else None
+        yrs = _age_years(e.latest_published) if e and not e.error else None
         has_cutoff = vendor_cutoff(pod) is not None
         # unknown age sorts last: never rank a pod on data we do not have
         unknown = yrs is None
@@ -274,7 +272,7 @@ def render_markdown(audit: Audit, root: Path) -> str:
 
     for pod in sorted(usage, key=sort_key):
         e = audit.enrichment.get(pod)
-        if e and e.latest_published:
+        if e and not e.error and _age_years(e.latest_published) is not None:
             yrs = _age_years(e.latest_published)
             static = f"{yrs:.1f} years" if yrs else "—"
             pub = f"{e.latest_version} ({e.latest_published})"

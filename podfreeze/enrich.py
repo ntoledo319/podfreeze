@@ -24,6 +24,8 @@ per-pod CVE scanning for CocoaPods is either using a private dataset or is wrong
 from __future__ import annotations
 
 import json
+import datetime as _dt
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -151,6 +153,9 @@ def fetch_trunk(name: str) -> tuple[str | None, str | None, int | None, str | No
 
     Distinguishes network failure from "this pod is not on trunk" — conflating them
     would tell a user their pod is absent when the lookup simply could not run.
+    Selects the complete UTC publication instant, not array position or semantic
+    version precedence. Undated records prevent identifying the latest publication;
+    they must not be skipped in favour of a falsely certain result.
     """
     raw = _get(TRUNK_API.format(name=name))
     if raw is None:
@@ -159,14 +164,56 @@ def fetch_trunk(name: str) -> tuple[str | None, str | None, int | None, str | No
         return None, None, None, "not found on trunk (or the API rejected the name)"
     try:
         doc = json.loads(raw)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return None, None, None, "trunk API returned non-JSON"
-    versions = doc.get("versions") or []
+    if not isinstance(doc, dict) or not isinstance(doc.get("versions"), list):
+        return None, None, None, "trunk API returned invalid version metadata"
+    versions = doc["versions"]
     if not versions:
         return None, None, None, "no published versions"
-    last = versions[-1]
-    date = (last.get("created_at") or "")[:10] or None
-    return last.get("name"), date, len(versions), None
+    publications: list[tuple[_dt.datetime, str]] = []
+    now = _dt.datetime.now(_dt.timezone.utc)
+    for version in versions:
+        if not isinstance(version, dict):
+            return None, None, len(versions), "trunk API returned invalid version metadata"
+        label = version.get("name")
+        published = _publication_time(version.get("created_at"))
+        if not isinstance(label, str) or not label.strip() or published is None or published > now:
+            return None, None, len(versions), "latest publication unknown: incomplete or invalid metadata"
+        publications.append((published, label))
+    latest = max(published for published, _ in publications)
+    names = {label for published, label in publications if published == latest}
+    if len(names) != 1:
+        return None, None, len(versions), "latest publication ambiguous: multiple versions share its timestamp"
+    return next(iter(names)), latest.date().isoformat(), len(versions), None
+
+
+def _publication_time(value: object) -> _dt.datetime | None:
+    """Read full trunk UTC timestamps or timezone-qualified ISO 8601 instants.
+
+    Date-only and naive values cannot resolve publication order and remain unknown.
+    `` UTC`` is the trunk API's conventional suffix; ISO offsets are normalized.
+    Compatible with Python 3.9, whose fromisoformat does not accept a trailing Z.
+    """
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}[ T](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d"
+        r"(?:\.\d{1,6})?(?: UTC|Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)", value
+    ):
+        return None
+    if value.endswith(" UTC"):
+        value = value[:-4] + "+00:00"
+    elif value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    try:
+        result = _dt.datetime.fromisoformat(value)
+        if result.tzinfo is None:
+            return None
+        return result.astimezone(_dt.timezone.utc)
+    except (ValueError, OverflowError):
+        return None
 
 
 def find_swiftpm(name: str, cocoapods_doc: dict | None = None) -> tuple[str | None, bool | None]:

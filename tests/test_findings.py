@@ -75,7 +75,12 @@ def test_no_third_party_repository_names_published():
     blob = DATA.read_text(encoding="utf-8")
     slugs = re.findall(r"\b[\w.-]+/[\w.-]+\b", blob)
     allowed = ("http", "CC0", "ntoledo319", "cocoapods", "github.com", "CocoaPods")
-    leaked = [s for s in slugs if not any(a.lower() in s.lower() for a in allowed)]
+    correction_paths = {
+        c[key] for c in _data().get("corrections", [])
+        for key in ("original_snapshot", "notice")
+    }
+    leaked = [s for s in slugs if s not in correction_paths
+              and not any(a.lower() in s.lower() for a in allowed)]
     assert not leaked, f"third-party repository identifiers in the dataset: {sorted(set(leaked))}"
 
 
@@ -84,48 +89,58 @@ def test_dataset_licence_permits_reuse():
     assert "CC0" in _data()["licence"], "dataset must carry an open licence"
 
 
-def test_publish_dates_in_prose_match_the_dataset():
-    """Every date stated on the page must come from the dataset, not from memory.
-
-    The page originally claimed 'Firebase effectively left CocoaPods years ago' on the
-    strength of one pod. Checking the whole family showed the Firebase-branded pods are
-    frozen at 2022 but their dependencies -- GoogleUtilities, GTMSessionFetcher,
-    PromisesObjC -- shipped releases in 2026. The page understated the risk.
-    """
-    import re as _re
-
+def test_withdrawn_publication_values_are_not_current_evidence():
+    """An invalid selector's historical values must not survive as usable metadata."""
     d = _data()
-    by_pod = {p["pod"]: p for p in d["most_commonly_exposed_pods"]}
+    affected = [p for p in d["most_commonly_exposed_pods"] if "latest_version" in p]
+    assert len(affected) == 20
+    for pod in affected:
+        assert pod["latest_version"] is None
+        assert pod["last_published"] is None
+        assert pod["publication_status"] == "withdrawn_unreliable_selection"
     html = HTML.read_text(encoding="utf-8")
-
-    months = {"Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05",
-              "Jun": "06", "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10",
-              "Nov": "11", "Dec": "12"}
-
-    rows = _re.findall(
-        r"<tr><td><code>(\w+)</code></td><td>(\d{1,2}) (\w{3}) (\d{4})</td>", html)
-    assert rows, "no pod/date rows found on the page"
-
-    for pod, day, mon, year in rows:
-        assert pod in by_pod, f"page names {pod}, which is not in the dataset"
-        want = f"{year}-{months[mon]}-{int(day):02d}"
-        got = by_pod[pod].get("last_published")
-        assert got == want, f"{pod}: page says {want}, dataset says {got}"
+    assert "Publication-date supplement withdrawn" in html
+    assert "null" in html
+    assert "re-derives every number" not in html
+    assert "every number above is identical" not in html
 
 
-def test_actively_publishing_pods_are_distinguished():
-    """The page must separate 'already static' from 'still shipping'.
-
-    Both are exposed, but only the second loses a live channel at the freeze. Collapsing
-    them tells a reader the wrong thing about what to migrate first.
-    """
-    html = HTML.read_text(encoding="utf-8")
-    assert "Which exposures actually change anything" in html, (
-        "the section distinguishing live from static exposure was removed"
-    )
+def test_original_snapshot_is_retained_and_counts_are_unchanged():
+    """Preserve the flawed evidence, explicitly withdrawn, without rewriting history."""
+    import hashlib
     d = _data()
-    live = [p for p in d["most_commonly_exposed_pods"]
-            if p.get("last_published", "") >= "2025-01-01"]
-    assert len(live) >= 5, (
-        f"expected several actively-publishing pods in the dataset, found {len(live)}"
-    )
+    correction = d["corrections"][0]
+    original_path = ROOT / "docs" / correction["original_snapshot"]
+    original_bytes = original_path.read_bytes()
+    assert hashlib.sha256(original_bytes).hexdigest() == correction["original_sha256"]
+    original = json.loads(original_bytes)
+    assert original["totals"] == d["totals"]
+    assert original["measured_utc"] == d["measured_utc"]
+    assert original["method"] == d["method"]
+    assert original["sampling_caveat"] == d["sampling_caveat"]
+    assert len(original["most_commonly_exposed_pods"]) == len(d["most_commonly_exposed_pods"])
+    for field in ("exposed_pod_count_distribution", "cocoapods_versions"):
+        if field in original:
+            assert original[field] == d[field]
+    for before, after in zip(original["most_commonly_exposed_pods"], d["most_commonly_exposed_pods"]):
+        assert before["pod"] == after["pod"]
+        assert before["projects"] == after["projects"]
+        assert before.get("total_versions") == after.get("total_versions")
+    assert "not usable as factual evidence" in correction["original_status"]
+    notice = (ROOT / "docs" / correction["notice"]).read_text()
+    assert "withdrawn" in notice and "not offered as true historical" in notice
+    assert correction["original_sha256"] in notice
+
+
+def test_sales_surfaces_withdraw_old_release_age_assertions():
+    for rel in ("README.md", "docs/index.html"):
+        text = (ROOT / rel).read_text()
+        assert "2020-11-13" not in text
+        assert "5.9.5" not in text
+        assert "5.5.1 (2021-03-18)" not in text
+        assert "real figures from the trunk API, not examples" not in text
+        assert "static since 2022" not in text
+        assert "corrections/2026-10-02.html" in text
+    reproduction = (ROOT / "reproduce_findings.py").read_text()
+    assert "re-derives every number" not in reproduction
+    assert "does not reproduce the withdrawn" in reproduction

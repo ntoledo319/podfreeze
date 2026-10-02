@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>podfreeze publication-data correction — 2 October 2026</title><style>body{max-width:48rem;margin:3rem auto;padding:0 1.25rem;font:1.05rem/1.6 system-ui,sans-serif;color:#182028;background:#fafafa}a{color:#174ea6}code{overflow-wrap:anywhere}h1{line-height:1.2}</style></head><body>
+<p><a href="../index.html">podfreeze</a> · <a href="../findings.html">Corrected study</a></p>
+<h1>Publication-data correction</h1><p>2 October 2026</p>
+<p>Our previous enrichment code selected the last entry in the CocoaPods trunk API's versions array. Reversing identical records changed which release it called latest. Array position does not establish publication order.</p>
+<p>The product now compares complete publication timestamps, including timezones. It selects the most recently published version, which can be a lower-version backport. Missing or invalid metadata, future timestamps and ambiguous latest-publication ties produce an unknown result instead of an age or priority claim. A repeated identical latest record is harmless.</p>
+<p>We withdraw the earlier SDWebImage, Realm and Alamofire sales examples; the study's latest-version and publication-date supplement; and conclusions about which dependencies were already static. In particular, the previous SDWebImage 2020 last-release claim conflicts with the <a href="https://cocoapods.org/pods/SDWebImage">official CocoaPods catalogue</a>, which lists 5.21.7 and February 2026 when read on 2 October. That catalogue observation is not a replacement September 15 measurement.</p>
+<p>The <a href="../findings.json">corrected dataset</a> makes the twenty affected publication records unknown. Counts based on lockfile dependency sources, the original measurement date and the non-random sampling caveat remain unchanged. The reproduction script checks an exposure summary, not publication histories. No fresh scan of the original project corpus is claimed.</p>
+<h2>Preserved provenance</h2>
+<p><a href="findings-before-2026-10-02.withdrawn.json">Original dataset — contains withdrawn, unreliable publication metadata</a>. It is retained byte-for-byte to make the correction auditable, not offered as true historical release evidence. Do not use its publication fields or derived activity conclusions.</p>
+<p>Original SHA-256: <code>935b6e5751bb7a2f72fff663f255c286f720607ef4b6baa0d875ce01111fb59b</code>.</p>
+<p>No customer price, licence rights, refund promise or manual licence-delivery process changes. Existing signed keys continue to work. Current installation instructions on the <a href="../index.html">product page</a> identify the corrected release.</p>
+</body></html>

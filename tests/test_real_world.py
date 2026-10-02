@@ -194,7 +194,7 @@ def test_pro_ranks_actively_published_first():
         "one losing a live release channel at the freeze"
     )
     assert "loses a live release channel" in _priority(live)[1]
-    assert "frozen already" in _priority(stale)[1]
+    assert "maintenance status requires review" in _priority(stale)[1]
 
 
 def test_pro_order_of_work_text_is_not_backwards():
@@ -279,7 +279,7 @@ def test_audit_triages_instead_of_dumping_a_wall(tmp_path, monkeypatch):
 
     assert "still publishing (lose a live channel)" in md, (
         "summary no longer triages exposed pods by whether they still publish")
-    assert "already frozen in practice" in md
+    assert "no observed publication for 3+ years" in md
     assert "Start with the 2 pod(s) still publishing" in md, (
         "report no longer names where to start")
     # the starting pods must be the live ones, not the ancient ones

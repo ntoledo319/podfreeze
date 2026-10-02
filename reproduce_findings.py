@@ -6,15 +6,16 @@ real iOS projects whose dependency sources can be determined have at least one p
 can never receive another published version after the CocoaPods trunk freeze.
 
 Published measurements that cannot be re-run are just assertions with a table. This
-script re-collects a corpus and re-derives every number, so anyone can check the claim
-or measure their own sample.
+script re-collects a corpus and re-derives an exposure summary, so anyone can check
+the classification or measure their own sample. It does not reproduce the withdrawn
+publication-date supplement or every descriptive field in the original dataset.
 
 It deliberately does NOT redistribute the corpus: lockfiles belong to their projects,
 and the collection step fetches them fresh from public repositories.
 
 Requires: the `gh` CLI, authenticated (`gh auth login`), and podfreeze installed.
 
-    pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.6"
+    pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.7"
     python3 reproduce_findings.py --out results.json
 
 Expect differences from the published run: GitHub code search results change over time,
@@ -126,7 +127,7 @@ def main() -> int:
         return 2
     if not shutil.which("podfreeze"):
         print('needs podfreeze: pip install "podfreeze @ '
-              'git+https://github.com/ntoledo319/podfreeze@v0.8.6"', file=sys.stderr)
+              'git+https://github.com/ntoledo319/podfreeze@v0.8.7"', file=sys.stderr)
         return 2
 
     tmp = Path(tempfile.mkdtemp(prefix="podfreeze-corpus-"))

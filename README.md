@@ -1,7 +1,7 @@
 # podfreeze
 
 Find which of your CocoaPods dependencies can never receive another published
-published version — including a security fix — after the trunk freeze.
+version — including a security fix — after the trunk freeze.
 
 **[→ Check your Podfile.lock in the browser](https://ntoledo319.github.io/podfreeze/check.html)** — no install, nothing uploaded.
 
@@ -16,7 +16,7 @@ two months before the trunk freeze.
 Or run it locally:
 
 ```
-pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.6"
+pip install "podfreeze @ git+https://github.com/ntoledo319/podfreeze@v0.8.7"
 cd your-ios-project
 podfreeze
 ```
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ntoledo319/podfreeze@v0.8.6
+      - uses: ntoledo319/podfreeze@v0.8.7
         with:
           path: Podfile.lock
           fail-on-exposed: 'false'   # 'true' to block the PR on any trunk-resolved pod
@@ -117,7 +117,7 @@ Outputs: `exposed-count`, `examined-count`, `undetermined-count`, `report-path`.
 With a Pro key, pass it from a secret to get the prioritised migration plan in CI:
 
 ```yaml
-      - uses: ntoledo319/podfreeze@v0.8.6
+      - uses: ntoledo319/podfreeze@v0.8.7
         with:
           license: ${{ secrets.PODFREEZE_LICENSE }}
 ```
@@ -134,21 +134,24 @@ each one, and in what order** — using live data, not guesses.
 
 For every exposed pod it fetches from the CocoaPods trunk API:
 
-- the latest version actually published, and **the date it was published**
-- how long the pod has been static (SDWebImage's last trunk release was **2020**)
+- the most recently published version and its UTC publication date, selected by
+  timestamp rather than array position or version number
+- elapsed time since that observed publication; unknown metadata stays unknown
 - whether a **`Package.swift` exists** to migrate to
 - a ranked order of work — the pods still shipping releases come first, because
   those are the ones losing a live update channel at the freeze
 
-```
-$ podfreeze --pro
+Run `podfreeze --pro` with your signed licence key to fetch the current public
+metadata. A lower-version maintenance release can be newer than a higher-version
+release. Invalid or missing timestamps and ambiguous latest releases are reported as
+unknown, not classified as an inactive dependency. Publication recency helps order
+investigation; it does not establish vulnerability, maintenance quality or whether a
+migration target is suitable.
 
-    SDWebImage
-      in your lockfile : 5.18.10
-      latest on trunk  : 5.9.5 (published 2020-11-13)
-      assessment       : last published 5y ago — effectively frozen already
-      SwiftPM          : Package.swift found at SDWebImage/SDWebImage
-```
+**October 2 correction:** earlier examples and the study's publication-date supplement
+used an order-dependent selector. Those values and their activity conclusions are
+withdrawn. The [correction notice](docs/corrections/2026-10-02.html) preserves the original
+snapshot and explains why the separate exposure counts are unaffected.
 
 | Tier | Unlocks | |
 |---|---|---|
@@ -186,16 +189,13 @@ podfreeze audit: scanned 4 Podfile.lock file(s) under /Users/you/code
 The report contains a **blast-radius table** — which of your apps each exposed pod
 appears in — ranked by what you actually lose at the freeze:
 
-| Pod | Last published | Static for | Your projects affected | SwiftPM target |
-|---|---|---|---|---|
-| `SDWebImage` | 5.9.5 (2020-11-13) | 5.8 years | 1 — app-consumer | yes |
-| `Realm` | 5.5.1 (2021-03-18) | 5.5 years | 1 — app-enterprise | not at conventional path |
-| `Alamofire` | 5.9.1 (2024-03-31) | 2.5 years | 1 — app-consumer | yes |
+The table reports each exposed pod, its observed latest publication when known,
+elapsed time, the affected project paths and the SwiftPM probe result. Unknown
+publication metadata remains explicit and does not establish low priority.
 
-Every figure is derived from your lockfiles and the CocoaPods trunk API. There are no
-invented effort estimates, no severity scores, and no risk theatre. Files that cannot be
-parsed are **listed in the report**, never silently skipped — a skipped file and a clean
-file must not look the same.
+Project counts and paths come from your lockfiles; publication observations come from
+the CocoaPods trunk API. No effort estimates or severity scores are invented. Files
+that cannot be parsed are **listed in the report**, never silently skipped.
 
 ### How licence keys work, and what the check is worth
 

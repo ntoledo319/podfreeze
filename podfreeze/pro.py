@@ -97,12 +97,9 @@ def _age_days(date_str: str | None) -> int | None:
 def _priority(e: Enrichment) -> tuple[int, str]:
     """Rank by what you actually LOSE at the freeze. Evidence-based, no invented severity.
 
-    Ranked actively-published pods last until v0.5.2, which was backwards. A pod that
-    has not published in three years loses nothing on 2 December -- nobody was shipping
-    fixes for it, and the freeze only formalises a state that already exists. A pod
-    shipping releases this year loses a live channel its maintainers are actively using,
-    including for security patches. Real example from measured data: GoogleUtilities
-    published three times in 2026 and appears in 18 of 83 surveyed projects.
+    Known recent publication observations precede older ones. Unknown observations
+    remain unranked evidence; placement at the end does not mean low risk. A release
+    date alone does not establish maintenance quality or vulnerability.
     """
     age = _age_days(e.latest_published)
     if e.error:
@@ -112,7 +109,7 @@ def _priority(e: Enrichment) -> tuple[int, str]:
     if age is not None and age <= 365 * 3:
         return (1, f"last published {age // 365}y ago")
     if age is not None:
-        return (2, f"last published {age // 365}y ago — effectively frozen already")
+        return (2, f"last published {age // 365}y ago — maintenance status requires review")
     return (3, "could not determine")
 
 
@@ -185,11 +182,15 @@ def render_pro(rep: Report, licensed: bool, key_supplied: bool = False,
 
     a("  ORDER OF WORK")
     a("")
-    a("  Deal with the pods listed first: they are still shipping releases, so the")
-    a(f"  {FREEZE_DATE} freeze takes away a live update channel — including the route")
-    a("  a security fix would travel. A pod that has not published in years is already")
-    a("  static in practice; the freeze only makes that permanent, and migrating it is")
-    a("  housekeeping rather than risk.")
+    if all(_priority(data[f.pod.name])[0] == 3 for f in exposed):
+        a("  Publication priority could not be determined for these pods.")
+        a("  Check the lookup errors and current release history before setting an order.")
+    else:
+        a("  Known publication observations are ordered with recent releases first.")
+        a(f"  The {FREEZE_DATE} freeze closes the trunk publication channel, including")
+        a("  a route for future security fixes. Review vendor deadlines and your usage too.")
+    a("  Unknown observations are not evidence of inactivity or low priority.")
+    a("  An old release date alone does not establish that migration is low risk.")
     a("")
     a("  NOTE ON VULNERABILITY DATA")
     a("")
