@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>podfreeze — which CocoaPods dependencies stop receiving patches on 2 Dec 2026</title>
 <meta name="description" content="CocoaPods trunk goes read-only on 2 December 2026. podfreeze reads your Podfile.lock and reports which pods can never receive another published version — including a security fix. Free CLI, open source.">

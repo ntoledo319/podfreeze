@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>podfreeze publication-data correction — 2 October 2026</title><style>body{max-width:48rem;margin:3rem auto;padding:0 1.25rem;font:1.05rem/1.6 system-ui,sans-serif;color:#182028;background:#fafafa}a{color:#174ea6}code{overflow-wrap:anywhere}h1{line-height:1.2}</style></head><body>
+<html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin"><meta name="viewport" content="width=device-width,initial-scale=1"><title>podfreeze publication-data correction — 2 October 2026</title><style>body{max-width:48rem;margin:3rem auto;padding:0 1.25rem;font:1.05rem/1.6 system-ui,sans-serif;color:#182028;background:#fafafa}a{color:#174ea6}code{overflow-wrap:anywhere}h1{line-height:1.2}</style></head><body>
 <p><a href="../index.html">podfreeze</a> · <a href="../findings.html">Corrected study</a></p>
 <h1>Publication-data correction</h1><p>2 October 2026</p>
 <p>Our previous enrichment code selected the last entry in the CocoaPods trunk API's versions array. Reversing identical records changed which release it called latest. Array position does not establish publication order.</p>
